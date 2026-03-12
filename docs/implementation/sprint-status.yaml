@@ -1,0 +1,446 @@
+# Sprint Status: VoiceKeeper MVP
+# Generated: 2026-03-11
+# Based on: Epics v1.0
+
+project: voicekeeper
+total_sprints: 4
+current_sprint: 1
+
+sprints:
+  - id: 1
+    name: "Foundation: Project Setup + Authentication"
+    goal: "Scaffold Expo project, configure Supabase backend, set up database schema, and implement user authentication with session management."
+    status: not_started
+    epics:
+      - E1
+      - E2
+    stories:
+      - id: E1-S1
+        title: "Initialize Expo Project with TypeScript"
+        epic: E1
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies: []
+        acceptance_criteria:
+          - "App launches on web, iOS, and Android with placeholder home screen"
+          - "Project structure matches architecture spec (app/, components/, contexts/, services/, types/, constants/, utils/)"
+          - "TypeScript strict mode enabled"
+          - "Core dependencies installed (@supabase/supabase-js, expo-av, expo-secure-store)"
+
+      - id: E1-S2
+        title: "Configure Supabase Backend"
+        epic: E1
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies:
+          - E1-S1
+        acceptance_criteria:
+          - "Supabase client connects successfully from the app"
+          - "notes table created with RLS enabled"
+          - "user_preferences table created with RLS enabled"
+          - "Database triggers for updated_at and new user preferences work"
+          - "recordings storage bucket created with private access policies"
+          - "Environment variables configured in .env.local"
+
+      - id: E1-S3
+        title: "Deploy Edge Function Skeleton"
+        epic: E1
+        status: not_started
+        priority: must_have
+        points: 2
+        dependencies:
+          - E1-S2
+        acceptance_criteria:
+          - "process-recording Edge Function deployed to Supabase"
+          - "OpenAI API key stored as Supabase secret"
+          - "Function validates request (requires audio file and format_type)"
+          - "Function returns mock response for authenticated requests"
+
+      - id: E2-S1
+        title: "Implement AuthContext and Session Management"
+        epic: E2
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies:
+          - E1-S2
+        acceptance_criteria:
+          - "AuthContext provides user, session, and loading state globally"
+          - "Auth state change listener updates context on login/logout"
+          - "Sessions persist across app restarts"
+          - "Auth guard redirects unauthenticated users to login screen"
+
+      - id: E2-S2
+        title: "Build Login/Signup Screen"
+        epic: E2
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies:
+          - E2-S1
+        acceptance_criteria:
+          - "User can sign up with email and password"
+          - "User can sign in with email and password"
+          - "Toggle between Sign Up and Sign In modes"
+          - "Validation errors displayed clearly"
+          - "Successful auth navigates to Home screen"
+
+      - id: E2-S3
+        title: "Implement Logout"
+        epic: E2
+        status: not_started
+        priority: must_have
+        points: 1
+        dependencies:
+          - E2-S2
+        acceptance_criteria:
+          - "Logout button clears session and navigates to login"
+          - "Local state is cleared on logout"
+
+  - id: 2
+    name: "Core Pipeline: Voice Recording + Transcription/Formatting"
+    goal: "Implement voice recording with visual feedback and the full transcription/formatting pipeline through the Edge Function."
+    status: not_started
+    epics:
+      - E3
+      - E4
+    stories:
+      - id: E3-S1
+        title: "Microphone Permission Handling"
+        epic: E3
+        status: not_started
+        priority: must_have
+        points: 2
+        dependencies: []
+        acceptance_criteria:
+          - "Microphone permission requested on first recording attempt"
+          - "Denied state shows explanation with link to system settings"
+          - "Granted state proceeds to recording"
+
+      - id: E3-S2
+        title: "Build Recording Screen UI"
+        epic: E3
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies: []
+        acceptance_criteria:
+          - "Recording screen displays as modal with Stop, Cancel, timer, and waveform"
+          - "AudioWaveform component visualizes metering data"
+          - "Layout is focused and distraction-free"
+
+      - id: E3-S3
+        title: "Implement Audio Recording Logic"
+        epic: E3
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies:
+          - E3-S1
+          - E3-S2
+        acceptance_criteria:
+          - "Audio records using expo-av and produces valid m4a file"
+          - "Recording starts on screen mount after permission check"
+          - "Stop button ends recording and returns local file URI"
+          - "5-minute maximum enforced with auto-stop and notification"
+          - "Audio format compatible with Whisper API (m4a, 16kHz+)"
+
+      - id: E3-S4
+        title: "Implement Cancel Recording"
+        epic: E3
+        status: not_started
+        priority: should_have
+        points: 1
+        dependencies:
+          - E3-S3
+        acceptance_criteria:
+          - "Cancel discards recording and returns to Home"
+          - "No audio file saved on cancel"
+          - "Confirmation shown if recording > 10 seconds"
+
+      - id: E4-S1
+        title: "Implement Edge Function - Whisper Transcription"
+        epic: E4
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies: []
+        acceptance_criteria:
+          - "Edge Function accepts audio file upload"
+          - "Audio sent to OpenAI Whisper API and transcription returned"
+          - "Whisper API errors handled with appropriate error responses"
+
+      - id: E4-S2
+        title: "Implement Edge Function - GPT Auto-Formatting"
+        epic: E4
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies:
+          - E4-S1
+        acceptance_criteria:
+          - "GPT-4o-mini called with format-specific prompts after transcription"
+          - "All 4 format types produce correctly structured output"
+          - "Title auto-generated (5 words max)"
+          - "Response returns JSON with transcription, formatted_text, and title"
+          - "GPT errors fall back to raw transcription"
+
+      - id: E4-S3
+        title: "Implement Client Processing Service"
+        epic: E4
+        status: not_started
+        priority: must_have
+        points: 2
+        dependencies:
+          - E4-S2
+        acceptance_criteria:
+          - "Client sends audio as multipart/form-data to Edge Function"
+          - "Response parsed into ProcessingResult type"
+          - "Network errors handled with retry option"
+
+      - id: E4-S4
+        title: "Build Note Preview Screen"
+        epic: E4
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies:
+          - E4-S3
+        acceptance_criteria:
+          - "Loading overlay shows during processing (Transcribing.../Formatting...)"
+          - "Formatted note displayed with auto-generated title"
+          - "User can edit text before saving"
+          - "Save button persists note"
+          - "Errors show retry option or fallback to raw transcription"
+
+  - id: 3
+    name: "Note Management + Settings"
+    goal: "Build the note grid UI, CRUD operations, note detail view, and user format preferences."
+    status: not_started
+    epics:
+      - E5
+      - E6
+    stories:
+      - id: E5-S1
+        title: "Implement NotesContext and CRUD Service"
+        epic: E5
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies: []
+        acceptance_criteria:
+          - "NotesContext provides notes list, loading state, and CRUD actions"
+          - "fetchNotes returns user's notes ordered by created_at DESC"
+          - "createNote inserts note with all required fields"
+          - "updateNote updates formatted_text and title"
+          - "deleteNote removes note by id"
+          - "All operations scoped to authenticated user via RLS"
+
+      - id: E5-S2
+        title: "Build Home Screen with Note Grid"
+        epic: E5
+        status: not_started
+        priority: must_have
+        points: 5
+        dependencies:
+          - E5-S1
+        acceptance_criteria:
+          - "Home screen displays 2-column card grid of notes"
+          - "NoteCard shows title, text preview (3 lines), timestamp, FormatBadge"
+          - "RecordButton FAB is prominent and always visible"
+          - "Settings icon in header"
+          - "Notes sorted newest first"
+          - "Empty state shown when no notes exist"
+
+      - id: E5-S3
+        title: "Build Note Detail Screen"
+        epic: E5
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies:
+          - E5-S2
+        acceptance_criteria:
+          - "Tapping NoteCard navigates to note/[id] detail screen"
+          - "Full formatted text, title, format type, and timestamps displayed"
+          - "User can edit text inline"
+          - "Save button persists changes"
+
+      - id: E5-S4
+        title: "Implement Note Deletion"
+        epic: E5
+        status: not_started
+        priority: must_have
+        points: 2
+        dependencies:
+          - E5-S3
+        acceptance_criteria:
+          - "Delete button on Note Detail screen"
+          - "Confirmation dialog before delete"
+          - "Note removed from database and UI after confirmation"
+          - "Navigates back to Home after deletion"
+
+      - id: E5-S5
+        title: "Connect Recording Flow to Note Saving"
+        epic: E5
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies:
+          - E5-S1
+        acceptance_criteria:
+          - "Full flow works: Record -> Process -> Preview -> Save -> Home"
+          - "Saved note appears immediately in the grid"
+          - "Format type from user preference applied correctly"
+
+      - id: E6-S1
+        title: "Implement PreferencesContext and Service"
+        epic: E6
+        status: not_started
+        priority: must_have
+        points: 2
+        dependencies: []
+        acceptance_criteria:
+          - "PreferencesContext provides defaultFormat and loading state"
+          - "Preference loaded from Supabase on authentication"
+          - "Defaults to bullet_list for new users"
+          - "setDefaultFormat persists to Supabase"
+
+      - id: E6-S2
+        title: "Build Settings Screen"
+        epic: E6
+        status: not_started
+        priority: must_have
+        points: 2
+        dependencies:
+          - E6-S1
+        acceptance_criteria:
+          - "Settings screen accessible from Home header"
+          - "4 format options displayed with current selection highlighted"
+          - "Changing selection updates preference immediately"
+          - "Logout button present and functional"
+
+  - id: 4
+    name: "Search, Audio Storage, and Polish"
+    goal: "Add note search, optional audio storage, and polish the app with accessibility improvements and end-to-end testing."
+    status: not_started
+    epics:
+      - E7
+      - E8
+      - E9
+    stories:
+      - id: E7-S1
+        title: "Build Search Bar Component"
+        epic: E7
+        status: not_started
+        priority: must_have
+        points: 2
+        dependencies: []
+        acceptance_criteria:
+          - "SearchBar with text input and clear button on Home screen"
+          - "Search query wired to NotesContext setSearchQuery"
+          - "Input debounced at 300ms"
+
+      - id: E7-S2
+        title: "Implement Note Filtering"
+        epic: E7
+        status: not_started
+        priority: must_have
+        points: 2
+        dependencies:
+          - E7-S1
+        acceptance_criteria:
+          - "Client-side filtering by title, formatted_text, and raw_transcription"
+          - "Case-insensitive matching"
+          - "NoteGrid updates to show filteredNotes when query is active"
+          - "No results message shown for empty results"
+
+      - id: E8-S1
+        title: "Implement Audio Upload Service"
+        epic: E8
+        status: not_started
+        priority: should_have
+        points: 2
+        dependencies: []
+        acceptance_criteria:
+          - "Audio uploaded to Supabase Storage at {user_id}/{note_id}.m4a"
+          - "Storage URL returned on success"
+          - "Upload failure does not block note saving"
+
+      - id: E8-S2
+        title: "Link Audio URL to Notes"
+        epic: E8
+        status: not_started
+        priority: should_have
+        points: 2
+        dependencies:
+          - E8-S1
+        acceptance_criteria:
+          - "Note record updated with audio_url after upload"
+          - "Upload is non-blocking (background)"
+          - "NoteCard shows audio indicator when audio_url exists"
+
+      - id: E9-S1
+        title: "End-to-End Flow Verification"
+        epic: E9
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies: []
+        acceptance_criteria:
+          - "Full flow tested on web, iOS, and Android"
+          - "Sign up, login, record, transcribe, format, preview, save, browse, search, edit, delete, settings, logout all work"
+          - "Flow-breaking bugs fixed"
+
+      - id: E9-S2
+        title: "Error Handling and Resilience"
+        epic: E9
+        status: not_started
+        priority: must_have
+        points: 2
+        dependencies: []
+        acceptance_criteria:
+          - "Network failures during processing show retry option"
+          - "GPT errors fall back to raw transcription"
+          - "Session expiry redirects to login"
+          - "No data loss on any failure path"
+
+      - id: E9-S3
+        title: "Accessibility and UI Polish"
+        epic: E9
+        status: not_started
+        priority: must_have
+        points: 3
+        dependencies: []
+        acceptance_criteria:
+          - "All interactive elements have accessible labels"
+          - "Color contrast meets WCAG AA"
+          - "Screen reader navigation works on iOS and Android"
+          - "Card grid spacing, typography consistent"
+          - "Responsive layout works on phone and tablet"
+
+# Summary
+summary:
+  total_stories: 28
+  total_points: 70
+  must_have_stories: 26
+  should_have_stories: 2
+  sprint_breakdown:
+    sprint_1:
+      stories: 6
+      points: 15
+      focus: "Infrastructure and auth foundation"
+    sprint_2:
+      stories: 8
+      points: 20
+      focus: "Voice recording and AI processing pipeline"
+    sprint_3:
+      stories: 7
+      points: 20
+      focus: "Note CRUD, UI, and user preferences"
+    sprint_4:
+      stories: 7
+      points: 16
+      focus: "Search, audio storage, polish, and testing"
