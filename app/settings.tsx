@@ -5,8 +5,8 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Alert,
 } from 'react-native';
+import { showConfirm, showAlert } from '../utils/alert';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -21,27 +21,24 @@ export default function SettingsScreen() {
   const { defaultFormat, setDefaultFormat } = usePreferences();
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut();
-          } catch {
-            Alert.alert('Error', 'Failed to sign out.');
-          }
-        },
-      },
-    ]);
+    showConfirm(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      async () => {
+        try {
+          await signOut();
+        } catch {
+          showAlert('Error', 'Failed to sign out.');
+        }
+      }
+    );
   };
 
   const handleFormatSelect = async (format: FormatType) => {
     try {
       await setDefaultFormat(format);
     } catch {
-      Alert.alert('Error', 'Failed to update preference.');
+      showAlert('Error', 'Failed to update preference.');
     }
   };
 
