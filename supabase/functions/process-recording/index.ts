@@ -25,9 +25,10 @@ const SYSTEM_PROMPTS: Record<string, string> = {
     'Structure this transcription as meeting notes with the following markdown sections: ## Key Topics, ## Decisions Made, ## Action Items. Use bullet points within each section.',
 };
 
-async function transcribeAudio(audioBlob: Blob): Promise<string> {
+async function transcribeAudio(audioFile: File | Blob): Promise<string> {
+  const filename = (audioFile as File).name || 'recording.m4a';
   const formData = new FormData();
-  formData.append('file', audioBlob, 'recording.m4a');
+  formData.append('file', audioFile, filename);
   formData.append('model', 'whisper-1');
 
   const response = await fetch(
@@ -134,7 +135,7 @@ serve(async (req: Request) => {
 
     // Step 1: Transcribe audio with Whisper
     console.log('Starting transcription...');
-    const transcription = await transcribeAudio(audioFile);
+    const transcription = await transcribeAudio(audioFile as File);
     console.log(`Transcription completed in ${Date.now() - startTime}ms`);
 
     // Step 2: Format with GPT (with fallback)

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { ProcessingResult, FormatType } from '../types';
 
@@ -15,19 +16,25 @@ export const processRecording = async (
   const blob = await response.blob();
 
   // Build form data
+  const audioFilename = Platform.OS === 'web' ? 'recording.webm' : 'recording.m4a';
   const formData = new FormData();
-  formData.append('audio', blob as any, 'recording.m4a');
+  formData.append('audio', blob as any, audioFilename);
   formData.append('format_type', formatType);
 
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
   // Call edge function
+  // Both Authorization and apikey headers are required:
+  // - apikey lets the Supabase gateway identify the project
+  // - Authorization carries the user JWT for function-level auth
   const result = await fetch(
     `${supabaseUrl}/functions/v1/process-recording`,
     {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey || '',
       },
       body: formData,
     }

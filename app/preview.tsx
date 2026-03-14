@@ -6,8 +6,8 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../utils/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { processRecording } from '../services/processing';
 import { useNotes } from '../contexts/NotesContext';
@@ -74,7 +74,7 @@ export default function PreviewScreen() {
       });
       router.replace('/');
     } catch (err: any) {
-      Alert.alert('Save Failed', err.message || 'Could not save the note.');
+      showAlert('Save Failed', err.message || 'Could not save the note.');
     } finally {
       setSaving(false);
     }

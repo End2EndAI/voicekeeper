@@ -6,8 +6,8 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Alert,
 } from 'react-native';
+import { showConfirm, showAlert } from '../../utils/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useNotes } from '../../contexts/NotesContext';
 import { FormatBadge } from '../../components/FormatBadge';
@@ -49,31 +49,24 @@ export default function NoteDetailScreen() {
       });
       setIsEditing(false);
     } catch (err: any) {
-      Alert.alert('Error', 'Failed to save changes.');
+      showAlert('Error', 'Failed to save changes.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    showConfirm(
       'Delete Note',
       'Are you sure you want to delete this note? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteNote(note.id);
-              router.replace('/');
-            } catch {
-              Alert.alert('Error', 'Failed to delete note.');
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await deleteNote(note.id);
+          router.replace('/');
+        } catch {
+          showAlert('Error', 'Failed to delete note.');
+        }
+      }
     );
   };
 

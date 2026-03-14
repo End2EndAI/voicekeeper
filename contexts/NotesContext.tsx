@@ -106,7 +106,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
       (note) =>
         note.title.toLowerCase().includes(q) ||
         note.formatted_text.toLowerCase().includes(q) ||
-        note.raw_transcription.toLowerCase().includes(q)
+        note.raw_transcription?.toLowerCase().includes(q)
     );
   }, [state.notes, state.searchQuery]);
 
