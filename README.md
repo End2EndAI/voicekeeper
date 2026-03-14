@@ -23,7 +23,7 @@ VoiceKeeper is a voice-first note-taking app — think Google Keep, but voice is
 |---|---|
 | Frontend | React Native (Expo) — iOS, Android, Web |
 | Speech-to-text | OpenAI Whisper API |
-| Auto-formatting | OpenAI GPT-4o-mini |
+| Auto-formatting | OpenAI gpt-5-nano |
 | Backend | Supabase (Auth + Postgres + Storage + Edge Functions) |
 | Deployment | Vercel (web) |
 
@@ -242,7 +242,7 @@ React Native (Expo)
         ▼
 Supabase Edge Function: process-recording
   ├── OpenAI Whisper API  →  transcription
-  └── OpenAI GPT-4o-mini  →  formatted note + title
+  └── OpenAI gpt-5-nano  →  formatted note + title
         │
         ▼
 Supabase Postgres  →  notes table (RLS per user)

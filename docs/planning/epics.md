@@ -142,7 +142,7 @@
 - **Acceptance Criteria:** Edge Function receives audio and returns accurate transcription; errors return appropriate error responses
 
 **E4-S2: Implement Edge Function - GPT Auto-Formatting**
-- Extend `process-recording` to call GPT-4o-mini after transcription
+- Extend `process-recording` to call gpt-5-nano after transcription
 - Implement format-specific prompts for: bullet_list, paragraph, action_items, meeting_notes
 - Include title generation in the GPT prompt (return JSON with title + content)
 - Parse GPT response and return `{ transcription, formatted_text, title }`
