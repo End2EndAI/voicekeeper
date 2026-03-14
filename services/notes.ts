@@ -11,9 +11,11 @@ export const fetchNotes = async (): Promise<Note[]> => {
 };
 
 export const createNote = async (note: CreateNoteInput): Promise<Note> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not authenticated');
   const { data, error } = await supabase
     .from('notes')
-    .insert(note)
+    .insert({ ...note, user_id: session.user.id })
     .select()
     .single();
   if (error) throw error;
