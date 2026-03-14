@@ -239,7 +239,7 @@ VoiceKeeper enables users to capture notes by speaking. The app records audio, t
 ### 7.2 OpenAI GPT API (Formatting)
 
 - **Endpoint:** POST /v1/chat/completions
-- **Model:** gpt-4o-mini (cost-efficient for formatting)
+- **Model:** gpt-5-nano (cost-efficient for formatting)
 - **Input:** Raw transcription + format type instruction
 - **Output:** Formatted text
 - **Note:** Proxied through Supabase Edge Function alongside Whisper call
@@ -297,7 +297,7 @@ The MVP is considered complete when:
 |---|---|
 | Whisper API file size limit | 25 MB per request (5-min recording is well under this) |
 | Whisper API supported formats | flac, m4a, mp3, mp4, mpeg, mpga, oga, ogg, wav, webm |
-| GPT API token limits | gpt-4o-mini supports 128K context (more than sufficient) |
+| GPT API token limits | gpt-5-nano supports 128K context (more than sufficient) |
 | Supabase free tier limits | 500 MB database, 1 GB storage, 50K Edge Function invocations/month |
 | React Native audio | Expo AV handles recording; expo-file-system for file management |
 | Minimum recording quality | 16kHz sample rate recommended for Whisper accuracy |

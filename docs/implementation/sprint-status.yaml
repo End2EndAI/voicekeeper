@@ -181,7 +181,7 @@ sprints:
         dependencies:
           - E4-S1
         acceptance_criteria:
-          - "GPT-4o-mini called with format-specific prompts after transcription"
+          - "gpt-5-nano called with format-specific prompts after transcription"
           - "All 4 format types produce correctly structured output"
           - "Title auto-generated (5 words max)"
           - "Response returns JSON with transcription, formatted_text, and title"

@@ -61,7 +61,7 @@ VoiceKeeper is a cross-platform voice-first note-taking application built with R
 +-------------------------v-------------------------+
 |                  OpenAI API                        |
 |  +------------------+  +----------------------+   |
-|  | Whisper (STT)     |  | GPT-4o-mini (Format) |   |
+|  | Whisper (STT)     |  | gpt-5-nano (Format) |   |
 |  +------------------+  +----------------------+   |
 +---------------------------------------------------+
 ```
@@ -81,7 +81,7 @@ VoiceKeeper is a cross-platform voice-first note-taking application built with R
 | **File Storage** | Supabase Storage | Private buckets |
 | **Edge Functions** | Supabase Edge Functions | Deno runtime |
 | **STT API** | OpenAI Whisper API | whisper-1 model |
-| **Formatting API** | OpenAI Chat Completions | gpt-4o-mini model |
+| **Formatting API** | OpenAI Chat Completions | gpt-5-nano model |
 | **Testing** | Jest + React Native Testing Library | Unit and integration tests |
 
 ## 4. Project Structure
