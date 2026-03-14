@@ -65,10 +65,13 @@ voicekeeper/
 │   └── preferences.ts            # User preferences
 ├── types/                        # TypeScript types
 ├── constants/                    # Colors, format options
-├── utils/                        # Helpers
+├── utils/
+│   ├── alert.ts                  # Cross-platform Alert (web-compatible)
+│   └── titleGenerator.ts         # Date formatting, text helpers
 ├── supabase/
 │   ├── migrations/
-│   │   └── 001_initial_schema.sql
+│   │   ├── 001_initial_schema.sql
+│   │   └── 002_fix_new_user_trigger.sql
 │   └── functions/
 │       └── process-recording/
 │           └── index.ts          # Edge Function (Whisper + GPT)
@@ -100,49 +103,49 @@ npm install
 ### 2. Set up Supabase
 
 1. Create a new project at [supabase.com](https://supabase.com/dashboard)
-2. Go to **SQL Editor** and run the contents of `supabase/migrations/001_initial_schema.sql` — this creates the `notes` table, `user_preferences` table, RLS policies, triggers, and the `recordings` storage bucket
-3. Go to **Authentication > Providers** and make sure **Email** is enabled (disable "Confirm email" for faster testing if desired)
-4. Note your project URL and anon key from **Settings > API**
+2. Go to **Authentication > Providers** and make sure **Email** is enabled (disable "Confirm email" for faster testing if desired)
+3. Note your **Project URL** and **anon key** from **Settings > API** — you'll need them in step 4
 
-### 3. Set up the Edge Function
+### 3. Configure environment variables
 
-The `process-recording` Edge Function handles Whisper transcription and GPT formatting server-side.
+```bash
+cp .env.example .env
+```
 
-**Option A: Deploy via Supabase CLI**
+Edit `.env`:
+
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Also create `supabase/.env.local` for the CLI:
+
+```env
+OPENAI_API_KEY=sk-your-openai-key
+```
+
+### 4. Link Supabase CLI and push the database
+
+Your project ref is the ID in your Supabase project URL (e.g. `pxaqfnczdfikxpjzlcfs`).
 
 ```bash
 # Install Supabase CLI if needed
-npm install -g supabase
+brew install supabase/tap/supabase   # macOS
+# or: npm install -g supabase
 
 # Login and link your project
 supabase login
 supabase link --project-ref YOUR_PROJECT_REF
 
-# Set your OpenAI API key as a secret
+# Push all migrations (creates tables, RLS policies, triggers, storage bucket)
+supabase db push
+
+# Set your OpenAI API key as a secret on the edge function
 supabase secrets set OPENAI_API_KEY=sk-your-openai-key
 
 # Deploy the Edge Function
 supabase functions deploy process-recording
-```
-
-**Option B: Deploy via Supabase Dashboard**
-
-1. Go to **Edge Functions** in your Supabase dashboard
-2. Create a new function called `process-recording`
-3. Paste the contents of `supabase/functions/process-recording/index.ts`
-4. Go to **Project Settings > Edge Functions > Secrets** and add `OPENAI_API_KEY`
-
-### 4. Configure environment variables
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local`:
-
-```env
-EXPO_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 ### 5. Run locally
@@ -157,6 +160,8 @@ npx expo start --ios
 # Android (requires Android Studio)
 npx expo start --android
 ```
+
+> **Note:** The `.env` file is loaded automatically by Expo. Do not rename it to `.env.local` — Expo only reads `.env` and `.env.local` but the Expo public variable prefix (`EXPO_PUBLIC_`) is required for client-side access.
 
 ---
 
@@ -200,20 +205,20 @@ The included `vercel.json` configures:
 
 ## Supabase setup checklist
 
-| Step | Done? |
+| Step | Command |
 |---|---|
-| Create Supabase project | |
-| Run `001_initial_schema.sql` in SQL Editor | |
-| Enable Email auth provider | |
-| Deploy `process-recording` Edge Function | |
-| Set `OPENAI_API_KEY` secret | |
-| Copy project URL and anon key to `.env.local` | |
+| Create Supabase project | [supabase.com/dashboard](https://supabase.com/dashboard) |
+| Link CLI to project | `supabase link --project-ref YOUR_PROJECT_REF` |
+| Push migrations to remote DB | `supabase db push` |
+| Set OpenAI API key secret | `supabase secrets set OPENAI_API_KEY=sk-...` |
+| Deploy Edge Function | `supabase functions deploy process-recording` |
+| Copy env vars to `.env` | See step 3 above |
 
 ### Database tables
 
 **notes**: stores all voice notes with title, formatted text, raw transcription, format type, and optional audio URL. RLS ensures users can only access their own notes.
 
-**user_preferences**: stores the default format preference per user. Auto-created on signup via trigger.
+**user_preferences**: stores the default format preference per user. Auto-created on signup via the `handle_new_user` trigger.
 
 ### Edge Function: process-recording
 
