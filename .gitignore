@@ -12,3 +12,4 @@ web-build/
 .env
 npm-debug.*
 *.tsbuildinfo
+supabase/.temp/
