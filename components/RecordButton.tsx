@@ -8,32 +8,50 @@ interface RecordButtonProps {
 
 export const RecordButton: React.FC<RecordButtonProps> = ({ onPress }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(0.25)).current;
 
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.15,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
+        Animated.parallel([
+          Animated.timing(pulseAnim, {
+            toValue: 1.25,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: 0,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: 0.25,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]),
       ])
     );
     pulse.start();
     return () => pulse.stop();
-  }, [pulseAnim]);
+  }, [pulseAnim, opacityAnim]);
 
   return (
     <View style={styles.container}>
       <Animated.View
         style={[
           styles.pulseRing,
-          { transform: [{ scale: pulseAnim }] },
+          {
+            transform: [{ scale: pulseAnim }],
+            opacity: opacityAnim,
+          },
         ]}
       />
       <Pressable
@@ -57,7 +75,7 @@ export const RecordButton: React.FC<RecordButtonProps> = ({ onPress }) => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 32,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -66,11 +84,10 @@ const styles = StyleSheet.create({
   } as any,
   pulseRing: {
     position: 'absolute',
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.recordingPulse,
-    opacity: 0.3,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.recording,
   },
   button: {
     width: 64,
@@ -79,11 +96,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.recording,
     justifyContent: 'center',
     alignItems: 'center',
+    ...Colors.shadow.lg,
     shadowColor: Colors.recording,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   buttonPressed: {
     transform: [{ scale: 0.92 }],
