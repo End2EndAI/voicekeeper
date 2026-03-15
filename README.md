@@ -6,6 +6,8 @@ VoiceKeeper is a voice-first note-taking app. Tap to record, and your voice is i
 
 Built with React Native (Expo), Supabase, and OpenAI. Runs on iOS, Android, and Web.
 
+**[Try the web demo →](https://voicekeeper.vercel.app/)** — Mobile apps coming soon to the App Store and Play Store.
+
 ---
 
 ## Features
@@ -215,7 +217,7 @@ This design keeps API keys server-side and centralizes all AI logic for easy ite
 
 ## About
 
-VoiceKeeper is developed by [End2EndAI](https://github.com/End2EndAI). The official mobile apps are available on iOS and Android with a free tier (one note per day) — if you'd like to support the project, consider using the official app!
+VoiceKeeper is developed by [End2EndAI](https://github.com/End2EndAI). The web app is live and mobile apps are coming soon to the App Store and Play Store. The free tier allows 5 notes per day (limited due to OpenAI API costs). There is no paid subscription yet — one is coming for both the web app and mobile apps.
 
 Developers are welcome to self-host using their own API keys under the AGPL-3.0 license. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get involved.
 
