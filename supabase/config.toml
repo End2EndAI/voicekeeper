@@ -1,4 +1,4 @@
-project_id = "pxaqfnczdfikxpjzlcfs"
+project_id = ""
 
 [functions.process-recording]
 verify_jwt = false
