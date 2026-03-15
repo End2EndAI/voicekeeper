@@ -1,12 +1,24 @@
-# VoiceKeeper
+<p align="center">
+  <img src="./assets/logo.png" width="120" alt="VoiceKeeper" />
+</p>
 
-> **Speak it. Keep it. Organized.**
+<h1 align="center">VoiceKeeper</h1>
+
+<p align="center">
+  <em>Speak it. Keep it. Organized.</em>
+</p>
+
+<p align="center">
+  <a href="https://voicekeeper.vercel.app/"><strong>Try the web demo →</strong></a>
+  &nbsp;·&nbsp;
+  Mobile apps coming soon to the App Store and Play Store
+</p>
+
+---
 
 VoiceKeeper is a voice-first note-taking app. Tap to record, and your voice is instantly transcribed and auto-formatted into the structure you want — bullet lists, paragraphs, action items, meeting notes, or a fully custom template you define by example.
 
 Built with React Native (Expo), Supabase, and OpenAI. Runs on iOS, Android, and Web.
-
-**[Try the web demo →](https://voicekeeper.vercel.app/)** — Mobile apps coming soon to the App Store and Play Store.
 
 ---
 
