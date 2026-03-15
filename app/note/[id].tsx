@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { showConfirm, showAlert } from '../../utils/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useNotes } from '../../contexts/NotesContext';
@@ -149,7 +150,7 @@ export default function NoteDetailScreen() {
         ) : (
           <>
             <Text style={styles.title}>{note.title}</Text>
-            <Text style={styles.text}>{note.formatted_text}</Text>
+            <Markdown style={markdownStyles}>{note.formatted_text}</Markdown>
           </>
         )}
 
@@ -163,6 +164,20 @@ export default function NoteDetailScreen() {
     </SafeAreaView>
   );
 }
+
+const markdownStyles = {
+  body: {
+    fontSize: 16,
+    color: Colors.text,
+    lineHeight: 26,
+  },
+  bullet_list: {
+    marginVertical: 4,
+  },
+  list_item: {
+    marginVertical: 2,
+  },
+};
 
 const styles = StyleSheet.create({
   container: {

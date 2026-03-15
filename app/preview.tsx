@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { showAlert } from '../utils/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { processRecording } from '../services/processing';
@@ -166,7 +167,7 @@ export default function PreviewScreen() {
               accessibilityLabel="Edit note content"
             />
           ) : (
-            <Text style={styles.text}>{editableText}</Text>
+            <Markdown style={markdownStyles}>{editableText}</Markdown>
           )}
         </View>
 
@@ -193,6 +194,20 @@ export default function PreviewScreen() {
     </SafeAreaView>
   );
 }
+
+const markdownStyles = {
+  body: {
+    fontSize: 16,
+    color: Colors.text,
+    lineHeight: 26,
+  },
+  bullet_list: {
+    marginVertical: 4,
+  },
+  list_item: {
+    marginVertical: 2,
+  },
+};
 
 const styles = StyleSheet.create({
   container: {
