@@ -31,7 +31,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <View style={styles.brand}>
-            <Image source={require('../assets/logo.png')} style={styles.logo} />
+            <Image source={require('../assets/logo_no_bg.png')} style={styles.logo} />
             <Text style={styles.greeting}>VoiceKeeper</Text>
           </View>
           <Text style={styles.subtitle}>
