@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useNotes } from '../contexts/NotesContext';
 import { NoteGrid } from '../components/NoteGrid';
@@ -30,7 +30,10 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Your Notes</Text>
+          <View style={styles.brand}>
+            <Image source={require('../assets/logo.png')} style={styles.logo} />
+            <Text style={styles.greeting}>VoiceKeeper</Text>
+          </View>
           <Text style={styles.subtitle}>
             {filteredNotes.length > 0
               ? `${filteredNotes.length} note${filteredNotes.length !== 1 ? 's' : ''}`
@@ -79,6 +82,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 4,
+  },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logo: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
   },
   greeting: {
     fontSize: 28,
