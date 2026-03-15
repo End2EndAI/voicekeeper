@@ -55,7 +55,7 @@ export const processRecording = async (
   if (!result.ok) {
     const error = await result.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(
-      error.error || `Processing failed with status ${result.status}`
+      error.message || error.error || `Processing failed with status ${result.status}`
     );
   }
 
