@@ -169,7 +169,7 @@ voicekeeper/
 │   └── note/[id].tsx             # Note detail / edit
 ├── components/                   # Reusable UI components
 ├── contexts/                     # React Context (Auth, Notes, Preferences)
-├── services/                     # Business logic (Supabase, recording, processing, GDPR)
+├── services/                     # Business logic (Supabase, processing, GDPR)
 ├── types/                        # TypeScript type definitions
 ├── constants/                    # Colors, format options
 ├── utils/                        # Helpers (alerts, title generation)
