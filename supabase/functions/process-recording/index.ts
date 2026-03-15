@@ -38,7 +38,8 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 const SHARED_SUFFIX =
   `Also generate an expressive, descriptive title that captures the core subject or idea.
 Good title: "App to benchmark LLM providers" — Bad title: "Je veux créer une application" (first words of the transcription).
-Always respond in the same language as the transcription.`;
+Always respond in the same language as the transcription.
+Respond ONLY with a valid JSON object with exactly two fields: "title" (string) and "content" (string containing the formatted note in markdown).`;
 
 function buildSystemPrompt(formatType: string, customExample?: string): string {
   if (formatType === 'custom' && customExample) {
@@ -98,29 +99,7 @@ async function formatTranscription(
         { role: 'system', content: systemPrompt },
         { role: 'user', content: transcription },
       ],
-      temperature: 0.3,
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'note_output',
-          strict: true,
-          schema: {
-            type: 'object',
-            properties: {
-              title: {
-                type: 'string',
-                description: 'Expressive, descriptive title capturing the core subject (e.g. "App to benchmark LLM providers"). Never the first words of the transcription.',
-              },
-              content: {
-                type: 'string',
-                description: 'The reformulated note content in markdown. Never a verbatim copy of the transcription.',
-              },
-            },
-            required: ['title', 'content'],
-            additionalProperties: false,
-          },
-        },
-      },
+      response_format: { type: 'json_object' },
     }),
   });
 
