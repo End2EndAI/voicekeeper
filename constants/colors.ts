@@ -23,5 +23,6 @@ export const Colors = {
     paragraph: { bg: '#F0FDF4', text: '#16A34A' },
     action_items: { bg: '#FFF7ED', text: '#EA580C' },
     meeting_notes: { bg: '#FDF4FF', text: '#9333EA' },
+    custom: { bg: '#FEF3C7', text: '#B45309' },
   } as Record<string, { bg: string; text: string }>,
 };

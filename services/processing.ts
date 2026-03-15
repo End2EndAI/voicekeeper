@@ -4,7 +4,8 @@ import { ProcessingResult, FormatType } from '../types';
 
 export const processRecording = async (
   audioUri: string,
-  formatType: FormatType
+  formatType: FormatType,
+  customExample?: string
 ): Promise<ProcessingResult> => {
   const {
     data: { session },
@@ -21,13 +22,15 @@ export const processRecording = async (
   formData.append('audio', blob as any, audioFilename);
   formData.append('format_type', formatType);
 
+  // Pass custom example when format is custom
+  if (formatType === 'custom' && customExample) {
+    formData.append('custom_example', customExample);
+  }
+
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
   // Call edge function
-  // Both Authorization and apikey headers are required:
-  // - apikey lets the Supabase gateway identify the project
-  // - Authorization carries the user JWT for function-level auth
   const result = await fetch(
     `${supabaseUrl}/functions/v1/process-recording`,
     {

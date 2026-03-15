@@ -1,4 +1,4 @@
-export type FormatType = 'bullet_list' | 'paragraph' | 'action_items' | 'meeting_notes';
+export type FormatType = 'bullet_list' | 'paragraph' | 'action_items' | 'meeting_notes' | 'custom';
 
 export interface Note {
   id: string;
@@ -16,6 +16,7 @@ export interface UserPreferences {
   id: string;
   user_id: string;
   default_format: FormatType;
+  custom_example: string | null;
   updated_at: string;
 }
 

@@ -58,10 +58,12 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 24,
-    alignSelf: 'center',
+    left: 0,
+    right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-  },
+    pointerEvents: 'box-none',
+  } as any,
   pulseRing: {
     position: 'absolute',
     width: 72,
