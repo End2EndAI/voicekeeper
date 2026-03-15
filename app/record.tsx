@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,44 +6,47 @@ import {
   Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Audio } from 'expo-av';
+import {
+  useAudioRecorder,
+  useAudioRecorderState,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+} from 'expo-audio';
 import { AudioWaveform } from '../components/AudioWaveform';
 import { Colors } from '../constants/colors';
 import { MAX_RECORDING_DURATION_MS } from '../constants/formats';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { showAlert } from '../utils/alert';
-import {
-  requestMicrophonePermission,
-  prepareRecording,
-  stopRecording,
-} from '../services/recording';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RecordScreen() {
   const router = useRouter();
   const { defaultFormat, customExample, customInstructions } = usePreferences();
-  const [isRecording, setIsRecording] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [metering, setMetering] = useState(0);
-  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(
-    null
-  );
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const recorder = useAudioRecorder(
+    { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true },
+  );
+  const recorderState = useAudioRecorderState(recorder, 100);
+
+  const isRecording = recorderState.isRecording;
+  const duration = recorderState.durationMillis ?? 0;
+  const rawMetering = recorderState.metering ?? -60;
+  const metering = Math.min(1, Math.max(0, (rawMetering + 60) / 60));
 
   useEffect(() => {
     checkPermission();
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => {});
-      }
-    };
   }, []);
 
+  useEffect(() => {
+    if (isRecording && duration >= MAX_RECORDING_DURATION_MS) {
+      handleStopRecording();
+    }
+  }, [duration, isRecording]);
+
   const checkPermission = async () => {
-    const granted = await requestMicrophonePermission();
+    const { granted } = await requestRecordingPermissionsAsync();
     setPermissionGranted(granted);
     if (granted) {
       startRecordingWithPermission();
@@ -53,30 +56,8 @@ export default function RecordScreen() {
   const startRecordingWithPermission = async () => {
     try {
       setError(null);
-      const recording = await prepareRecording();
-      recordingRef.current = recording;
-      setIsRecording(true);
-      setDuration(0);
-
-      intervalRef.current = setInterval(async () => {
-        if (recordingRef.current) {
-          try {
-            const status = await recordingRef.current.getStatusAsync();
-            if (status.isRecording) {
-              setDuration(status.durationMillis);
-              if (status.metering !== undefined) {
-                const normalized = Math.max(0, (status.metering + 60) / 60);
-                setMetering(Math.min(1, normalized));
-              }
-              if (status.durationMillis >= MAX_RECORDING_DURATION_MS) {
-                handleStopRecording();
-              }
-            }
-          } catch {
-            // Recording may have been stopped
-          }
-        }
-      }, 100);
+      await recorder.prepareToRecordAsync();
+      recorder.record();
     } catch (err: any) {
       setError('Failed to start recording. Please try again.');
       console.error('Recording start error:', err);
@@ -85,11 +66,9 @@ export default function RecordScreen() {
 
   const startRecording = async () => {
     if (!permissionGranted) {
-      const granted = await requestMicrophonePermission();
+      const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) {
-        setError(
-          'Microphone permission is required. Please enable it in your device settings.'
-        );
+        setError('Microphone permission is required. Please enable it in your device settings.');
         return;
       }
       setPermissionGranted(true);
@@ -98,18 +77,16 @@ export default function RecordScreen() {
   };
 
   const handleStopRecording = useCallback(async () => {
-    if (!recordingRef.current) return;
-
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+    if (!recorderState.isRecording) return;
 
     try {
-      const uri = await stopRecording(recordingRef.current);
-      recordingRef.current = null;
-      setIsRecording(false);
-      setMetering(0);
+      await recorder.stop();
+      const uri = recorder.uri;
+
+      if (!uri) {
+        setError('Recording failed. Please try again.');
+        return;
+      }
 
       if (defaultFormat === 'custom' && !customExample) {
         showAlert(
@@ -125,31 +102,22 @@ export default function RecordScreen() {
         params: {
           audioUri: uri,
           formatType: defaultFormat,
-          ...(defaultFormat === 'custom' && customExample
-            ? { customExample }
-            : {}),
+          ...(defaultFormat === 'custom' && customExample ? { customExample } : {}),
           ...(customInstructions ? { customInstructions } : {}),
         },
       });
     } catch (err: any) {
       setError('Failed to stop recording. Please try again.');
-      setIsRecording(false);
       console.error('Recording stop error:', err);
     }
-  }, [defaultFormat, customExample, customInstructions, router]);
+  }, [recorder, recorderState.isRecording, defaultFormat, customExample, customInstructions, router]);
 
   const handleCancel = async () => {
-    if (recordingRef.current) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+    if (recorderState.isRecording) {
       try {
-        await recordingRef.current.stopAndUnloadAsync();
+        await recorder.stop();
       } catch {}
-      recordingRef.current = null;
     }
-    setIsRecording(false);
     router.back();
   };
 
