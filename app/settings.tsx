@@ -19,15 +19,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { defaultFormat, customExample, setDefaultFormat, setCustomExample } =
-    usePreferences();
+  const {
+    defaultFormat,
+    customExample,
+    customInstructions,
+    setDefaultFormat,
+    setCustomExample,
+    setCustomInstructions,
+  } = usePreferences();
 
   const [localCustomExample, setLocalCustomExample] = useState(customExample);
   const [savingExample, setSavingExample] = useState(false);
+  const [localCustomInstructions, setLocalCustomInstructions] = useState(customInstructions);
+  const [savingInstructions, setSavingInstructions] = useState(false);
 
   useEffect(() => {
     setLocalCustomExample(customExample);
   }, [customExample]);
+
+  useEffect(() => {
+    setLocalCustomInstructions(customInstructions);
+  }, [customInstructions]);
 
   const handleSignOut = () => {
     showConfirm(
@@ -63,6 +75,19 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleSaveCustomInstructions = async () => {
+    setSavingInstructions(true);
+    try {
+      await setCustomInstructions(localCustomInstructions);
+      showAlert('Saved', 'Your custom instructions have been saved.');
+    } catch {
+      showAlert('Error', 'Failed to save custom instructions.');
+    } finally {
+      setSavingInstructions(false);
+    }
+  };
+
+  const hasCustomInstructionsChanged = localCustomInstructions !== customInstructions;
   const hasCustomExampleChanged = localCustomExample !== customExample;
 
   return (
@@ -146,6 +171,41 @@ export default function SettingsScreen() {
               );
             })}
           </View>
+        </View>
+
+        {/* Custom instructions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Custom Instructions</Text>
+          <Text style={styles.sectionDesc}>
+            These instructions apply to every note, regardless of format. Use
+            them to control tone, language, length, etc.
+          </Text>
+          <TextInput
+            style={styles.instructionsInput}
+            value={localCustomInstructions}
+            onChangeText={setLocalCustomInstructions}
+            placeholder={'e.g. "Be concise", "Always respond in French", "Use simple vocabulary"'}
+            placeholderTextColor={Colors.textTertiary}
+            multiline
+            textAlignVertical="top"
+            accessibilityLabel="Custom instructions for AI"
+          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.saveExampleButton,
+              (!hasCustomInstructionsChanged || savingInstructions) &&
+                styles.saveExampleButtonDisabled,
+              pressed &&
+                hasCustomInstructionsChanged &&
+                !savingInstructions && { opacity: 0.85 },
+            ]}
+            onPress={handleSaveCustomInstructions}
+            disabled={!hasCustomInstructionsChanged || savingInstructions}
+          >
+            <Text style={styles.saveExampleButtonText}>
+              {savingInstructions ? 'Saving...' : 'Save Instructions'}
+            </Text>
+          </Pressable>
         </View>
 
         {/* Custom template */}
@@ -316,6 +376,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  instructionsInput: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 14,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+    minHeight: 80,
+    lineHeight: 22,
   },
   customExampleInput: {
     borderWidth: 1.5,

@@ -17,6 +17,7 @@ export interface UserPreferences {
   user_id: string;
   default_format: FormatType;
   custom_example: string | null;
+  custom_instructions: string | null;
   updated_at: string;
 }
 

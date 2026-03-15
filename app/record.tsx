@@ -21,7 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RecordScreen() {
   const router = useRouter();
-  const { defaultFormat, customExample } = usePreferences();
+  const { defaultFormat, customExample, customInstructions } = usePreferences();
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
   const [metering, setMetering] = useState(0);
@@ -128,6 +128,7 @@ export default function RecordScreen() {
           ...(defaultFormat === 'custom' && customExample
             ? { customExample }
             : {}),
+          ...(customInstructions ? { customInstructions } : {}),
         },
       });
     } catch (err: any) {
@@ -135,7 +136,7 @@ export default function RecordScreen() {
       setIsRecording(false);
       console.error('Recording stop error:', err);
     }
-  }, [defaultFormat, customExample, router]);
+  }, [defaultFormat, customExample, customInstructions, router]);
 
   const handleCancel = async () => {
     if (recordingRef.current) {
