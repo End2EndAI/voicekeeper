@@ -30,15 +30,26 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>VoiceKeeper</Text>
-          <Text style={styles.subtitle}>Your voice notes</Text>
+          <Text style={styles.greeting}>Your Notes</Text>
+          <Text style={styles.subtitle}>
+            {filteredNotes.length > 0
+              ? `${filteredNotes.length} note${filteredNotes.length !== 1 ? 's' : ''}`
+              : 'No notes yet'}
+          </Text>
         </View>
         <Pressable
           onPress={handleSettings}
-          style={styles.settingsButton}
+          style={({ pressed }) => [
+            styles.settingsButton,
+            pressed && styles.settingsButtonPressed,
+          ]}
           accessibilityLabel="Settings"
         >
-          <Text style={styles.settingsIcon}>⚙️</Text>
+          <View style={styles.settingsIconContainer}>
+            <View style={styles.gearDot} />
+            <View style={[styles.gearDot, styles.gearDot2]} />
+            <View style={[styles.gearDot, styles.gearDot3]} />
+          </View>
         </Pressable>
       </View>
 
@@ -65,26 +76,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 4,
   },
-  title: {
+  greeting: {
     fontSize: 28,
     fontWeight: '800',
-    color: Colors.primary,
+    color: Colors.text,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: Colors.textTertiary,
     marginTop: 2,
   },
   settingsButton: {
-    padding: 8,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Colors.shadow.sm,
   },
-  settingsIcon: {
-    fontSize: 24,
+  settingsButtonPressed: {
+    backgroundColor: Colors.surfaceHover,
+    transform: [{ scale: 0.95 }],
   },
+  settingsIconContainer: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gearDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.textSecondary,
+    marginVertical: 1.5,
+  },
+  gearDot2: {},
+  gearDot3: {},
 });

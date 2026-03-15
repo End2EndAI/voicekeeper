@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { Colors } from '../constants/colors';
@@ -37,10 +36,6 @@ export default function LoginScreen() {
     try {
       if (isSignUp) {
         await signUp(email.trim(), password);
-        if (Platform.OS === 'web') {
-          setError(null);
-          // Some Supabase configs auto-confirm, others require email confirmation
-        }
       } else {
         await signIn(email.trim(), password);
       }
@@ -60,15 +55,27 @@ export default function LoginScreen() {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text style={styles.logo}>🎙️</Text>
+        {/* Branding */}
+        <View style={styles.brand}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <View style={styles.micBody} />
+              <View style={styles.micBase} />
+            </View>
+          </View>
           <Text style={styles.appName}>VoiceKeeper</Text>
           <Text style={styles.tagline}>Speak it. Keep it. Organized.</Text>
         </View>
 
-        <View style={styles.form}>
+        {/* Form card */}
+        <View style={styles.card}>
           <Text style={styles.title}>
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
+            {isSignUp ? 'Create your account' : 'Welcome back'}
+          </Text>
+          <Text style={styles.subtitle}>
+            {isSignUp
+              ? 'Start capturing your voice notes'
+              : 'Sign in to access your notes'}
           </Text>
 
           {error && (
@@ -82,8 +89,11 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               value={email}
-              onChangeText={setEmail}
-              placeholder="your@email.com"
+              onChangeText={(t) => {
+                setEmail(t);
+                if (error) setError(null);
+              }}
+              placeholder="you@example.com"
               placeholderTextColor={Colors.textTertiary}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -99,7 +109,10 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(t) => {
+                setPassword(t);
+                if (error) setError(null);
+              }}
               placeholder="At least 6 characters"
               placeholderTextColor={Colors.textTertiary}
               secureTextEntry
@@ -111,7 +124,11 @@ export default function LoginScreen() {
           </View>
 
           <Pressable
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={({ pressed }) => [
+              styles.button,
+              loading && styles.buttonDisabled,
+              pressed && !loading && styles.buttonPressed,
+            ]}
             onPress={handleSubmit}
             disabled={loading}
             accessibilityRole="button"
@@ -121,26 +138,30 @@ export default function LoginScreen() {
               {loading
                 ? 'Please wait...'
                 : isSignUp
-                ? 'Sign Up'
+                ? 'Create Account'
                 : 'Sign In'}
             </Text>
           </Pressable>
-
-          <Pressable
-            onPress={() => {
-              setIsSignUp(!isSignUp);
-              setError(null);
-            }}
-            style={styles.switchButton}
-            disabled={loading}
-          >
-            <Text style={styles.switchText}>
-              {isSignUp
-                ? 'Already have an account? Sign In'
-                : "Don't have an account? Sign Up"}
-            </Text>
-          </Pressable>
         </View>
+
+        {/* Toggle */}
+        <Pressable
+          onPress={() => {
+            setIsSignUp(!isSignUp);
+            setError(null);
+          }}
+          style={styles.switchButton}
+          disabled={loading}
+        >
+          <Text style={styles.switchText}>
+            {isSignUp
+              ? 'Already have an account? '
+              : "Don't have an account? "}
+            <Text style={styles.switchTextBold}>
+              {isSignUp ? 'Sign In' : 'Sign Up'}
+            </Text>
+          </Text>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -155,94 +176,138 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
+    paddingBottom: 48,
   },
-  header: {
+  brand: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 36,
   },
-  logo: {
-    fontSize: 64,
-    marginBottom: 12,
+  logoContainer: {
+    marginBottom: 16,
   },
-  appName: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: -0.5,
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Colors.shadow.lg,
+    shadowColor: Colors.primary,
   },
-  tagline: {
-    fontSize: 16,
-    color: Colors.textSecondary,
+  micBody: {
+    width: 16,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  micBase: {
+    width: 24,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#FFFFFF',
     marginTop: 4,
   },
-  form: {
+  appName: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.8,
+  },
+  tagline: {
+    fontSize: 15,
+    color: Colors.textTertiary,
+    marginTop: 6,
+    letterSpacing: 0.2,
+  },
+  card: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 20,
+    padding: 28,
     maxWidth: 400,
     width: '100%',
     alignSelf: 'center',
+    ...Colors.shadow.md,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 20,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    marginBottom: 24,
   },
   errorContainer: {
     backgroundColor: Colors.errorLight,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
   errorText: {
     color: Colors.error,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 6,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
     color: Colors.text,
     backgroundColor: Colors.background,
   },
   button: {
     backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
+    ...Colors.shadow.md,
+    shadowColor: Colors.primary,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
+  },
+  buttonPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
   switchButton: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 24,
     padding: 8,
   },
   switchText: {
-    color: Colors.primary,
+    color: Colors.textTertiary,
     fontSize: 14,
-    fontWeight: '500',
+  },
+  switchTextBold: {
+    color: Colors.primary,
+    fontWeight: '600',
   },
 });

@@ -26,6 +26,15 @@ export const FormatBadge: React.FC<FormatBadgeProps> = ({
     >
       <Text
         style={[
+          styles.icon,
+          { color: colors.text },
+          isSmall ? styles.iconSmall : styles.iconMedium,
+        ]}
+      >
+        {colors.icon}
+      </Text>
+      <Text
+        style={[
           styles.text,
           { color: colors.text },
           isSmall ? styles.textSmall : styles.textMedium,
@@ -39,16 +48,29 @@ export const FormatBadge: React.FC<FormatBadgeProps> = ({
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: 12,
+    borderRadius: 20,
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   badgeSmall: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    gap: 4,
   },
   badgeMedium: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    gap: 6,
+  },
+  icon: {
+    fontWeight: '700',
+  },
+  iconSmall: {
+    fontSize: 10,
+  },
+  iconMedium: {
+    fontSize: 12,
   },
   text: {
     fontWeight: '600',

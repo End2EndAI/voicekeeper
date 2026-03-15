@@ -35,10 +35,13 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
   if (notes.length === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.emptyIcon}>🎙️</Text>
+        <View style={styles.emptyIconContainer}>
+          <View style={styles.emptyMicBody} />
+          <View style={styles.emptyMicBase} />
+        </View>
         <Text style={styles.emptyTitle}>No notes yet</Text>
         <Text style={styles.emptyText}>
-          Tap the record button to create your first voice note
+          Tap the record button below to{'\n'}create your first voice note
         </Text>
       </View>
     );
@@ -66,18 +69,36 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
 
 const styles = StyleSheet.create({
   list: {
-    padding: 16,
-    paddingBottom: 100,
+    padding: 20,
+    paddingBottom: 120,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 40,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+  emptyIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.primarySubtle,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyMicBody: {
+    width: 14,
+    height: 22,
+    borderRadius: 7,
+    backgroundColor: Colors.primaryLight,
+  },
+  emptyMicBase: {
+    width: 20,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: Colors.primaryLight,
+    marginTop: 3,
   },
   emptyTitle: {
     fontSize: 20,
@@ -86,9 +107,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
+    fontSize: 15,
+    color: Colors.textTertiary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
   },
 });
