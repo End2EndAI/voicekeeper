@@ -95,12 +95,16 @@ Also create `supabase/.env.local` for local Edge Function development:
 OPENAI_API_KEY=sk-your-openai-key
 ```
 
-### 4. Set up the database and Edge Function
+### 4. Set up the database and Edge Functions
 
 ```bash
 # Install Supabase CLI if needed
 brew install supabase/tap/supabase   # macOS
 # or: npm install -g supabase
+
+# Set your project ID in the Supabase config
+# Replace YOUR_PROJECT_REF with your project reference from Settings > General
+sed -i '' 's/project_id = ""/project_id = "YOUR_PROJECT_REF"/' supabase/config.toml
 
 # Login and link your project
 supabase login
@@ -112,9 +116,12 @@ supabase db push
 # Set your OpenAI API key as a Supabase secret
 supabase secrets set OPENAI_API_KEY=sk-your-openai-key
 
-# Deploy the Edge Function
+# Deploy the Edge Functions
 supabase functions deploy process-recording
+supabase functions deploy delete-account
 ```
+
+> **Note:** Do not commit your `project_id` to the repo — `supabase/config.toml` uses an empty `project_id` by default so each self-hoster sets their own.
 
 ### 5. Run locally
 
@@ -160,15 +167,18 @@ voicekeeper/
 │   └── note/[id].tsx             # Note detail / edit
 ├── components/                   # Reusable UI components
 ├── contexts/                     # React Context (Auth, Notes, Preferences)
-├── services/                     # Business logic (Supabase, recording, processing)
+├── services/                     # Business logic (Supabase, recording, processing, GDPR)
 ├── types/                        # TypeScript type definitions
 ├── constants/                    # Colors, format options
 ├── utils/                        # Helpers (alerts, title generation)
 ├── supabase/
-│   ├── migrations/               # SQL migrations (5 files)
+│   ├── migrations/               # SQL migrations (6 files)
 │   └── functions/
-│       └── process-recording/    # Edge Function (Whisper + GPT)
+│       ├── process-recording/    # Edge Function (Whisper + GPT)
+│       └── delete-account/       # Edge Function (GDPR account deletion)
 ├── .env.example                  # Environment template
+├── PRIVACY_POLICY.md             # Privacy policy (GDPR)
+├── SECURITY.md                   # Security vulnerability reporting
 ├── app.json                      # Expo config
 ├── vercel.json                   # Vercel deployment config
 └── package.json
@@ -182,7 +192,11 @@ voicekeeper/
 
 **`user_preferences`** — per-user settings: default format, custom template example, and custom instructions. Auto-created on signup via a database trigger.
 
+**`audit_log`** — GDPR accountability log tracking account creation, deletion, and data export requests.
+
 **`recordings` bucket** — private Supabase Storage bucket for audio files, with per-user RLS.
+
+The database also includes server-side functions for GDPR compliance: `export_user_data()` (data portability) and account deletion with full storage cleanup.
 
 ---
 
