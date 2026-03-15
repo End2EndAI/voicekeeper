@@ -88,7 +88,7 @@ We may update this Privacy Policy from time to time. We will notify you of mater
 
 For any privacy-related questions or to exercise your rights:
 
-**Email:** privacy@end2endai.com
+**Email:** valentinedaywebsite@proton.me
 
 If you believe your data protection rights have been violated, you have the right to lodge a complaint with:
 
