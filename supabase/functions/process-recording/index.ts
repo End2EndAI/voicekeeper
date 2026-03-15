@@ -17,21 +17,24 @@ const VALID_FORMATS = [
 
 const SYSTEM_PROMPTS: Record<string, string> = {
   bullet_list:
-    'Extract the key points from this transcription and format them as a concise bulleted list using markdown bullets (- ).',
+    'Extract the key points from this transcription and format them as a concise bulleted list using markdown bullets (- ). Reformulate each point in clear, concise language. Do not copy the transcription verbatim.',
   paragraph:
-    'Rewrite this transcription as clean, well-structured prose paragraphs. Fix grammar, remove filler words, and improve readability.',
+    'Rewrite this transcription as clean, well-structured prose paragraphs. Synthesize and restructure the ideas — don\'t just clean up the original wording. Remove filler words and improve readability.',
   action_items:
-    'Extract all action items and tasks from this transcription. Format each as a checkbox item using markdown (- [ ] task description).',
+    'Extract all action items and tasks from this transcription. Rephrase each as a clear, actionable task using markdown checkboxes (- [ ] task). Do not copy sentences from the transcription.',
   meeting_notes:
-    'Structure this transcription as meeting notes with the following markdown sections: ## Key Topics, ## Decisions Made, ## Action Items. Use bullet points within each section.',
+    'Structure this transcription as meeting notes with the following markdown sections: ## Key Topics, ## Decisions Made, ## Action Items. Reformulate all content — do not copy sentences from the transcription. Use bullet points within each section.',
 };
+
+const SHARED_SUFFIX =
+  'Also generate an expressive, descriptive title that captures the core subject or idea (e.g. \'App to benchmark LLM providers\'). Do not use the first words of the transcription as the title. Always respond in the same language as the transcription.';
 
 function buildSystemPrompt(formatType: string, customExample?: string): string {
   if (formatType === 'custom' && customExample) {
-    return `Format the transcription following the exact same structure and style as this example note:\n\n---\n${customExample}\n---\n\nApply this structure to the new transcription. Keep the same formatting, headings, and organization pattern.`;
+    return `Format the transcription following the exact same structure and style as this example note:\n\n---\n${customExample}\n---\n\nApply this structure to the new transcription. Reformulate the content to match the style — do not copy the transcription verbatim.\n\n${SHARED_SUFFIX}`;
   }
 
-  return SYSTEM_PROMPTS[formatType] || SYSTEM_PROMPTS['bullet_list'];
+  return `${SYSTEM_PROMPTS[formatType] || SYSTEM_PROMPTS['bullet_list']}\n\n${SHARED_SUFFIX}`;
 }
 
 async function transcribeAudio(audioFile: File | Blob): Promise<string> {
@@ -81,14 +84,26 @@ async function formatTranscription(
     body: JSON.stringify({
       model: 'gpt-5-nano',
       messages: [
-        {
-          role: 'system',
-          content: `${systemPrompt}\n\nAlso generate a short title (5 words maximum) summarizing the content.\n\nRespond with valid JSON only: {"title": "...", "content": "..."}`,
-        },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: transcription },
       ],
       temperature: 0.3,
-      response_format: { type: 'json_object' },
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'note_output',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              content: { type: 'string' },
+            },
+            required: ['title', 'content'],
+            additionalProperties: false,
+          },
+        },
+      },
     }),
   });
 
