@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/logo.png" width="120" alt="VoiceKeeper" />
+  <img src="./assets/logo_no_bg.png" width="120" alt="VoiceKeeper" />
 </p>
 
 <h1 align="center">VoiceKeeper</h1>
