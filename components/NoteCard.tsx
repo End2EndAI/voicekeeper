@@ -25,8 +25,8 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
       <Text style={styles.title} numberOfLines={2}>
         {note.title}
       </Text>
-      <Text style={styles.preview} numberOfLines={4}>
-        {truncateText(note.formatted_text, 200)}
+      <Text style={styles.preview} numberOfLines={3}>
+        {truncateText(note.formatted_text, 180)}
       </Text>
     </Pressable>
   );
@@ -35,16 +35,10 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    ...Colors.shadow.sm,
   },
   cardPressed: {
     backgroundColor: Colors.surfaceHover,
@@ -54,21 +48,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 6,
+    marginBottom: 8,
+    lineHeight: 22,
+    letterSpacing: -0.2,
   },
   preview: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: Colors.textTertiary,
     lineHeight: 20,
   },
   date: {
     fontSize: 12,
     color: Colors.textTertiary,
+    fontWeight: '500',
   },
 });

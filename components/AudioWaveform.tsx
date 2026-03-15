@@ -7,22 +7,22 @@ interface AudioWaveformProps {
   isRecording: boolean;
 }
 
-const BAR_COUNT = 20;
+const BAR_COUNT = 24;
 
 export const AudioWaveform: React.FC<AudioWaveformProps> = ({
   metering,
   isRecording,
 }) => {
   const barAnims = useRef(
-    Array.from({ length: BAR_COUNT }, () => new Animated.Value(0.15))
+    Array.from({ length: BAR_COUNT }, () => new Animated.Value(0.1))
   ).current;
 
   useEffect(() => {
     if (!isRecording) {
       barAnims.forEach((anim) => {
         Animated.timing(anim, {
-          toValue: 0.15,
-          duration: 300,
+          toValue: 0.1,
+          duration: 400,
           useNativeDriver: false,
         }).start();
       });
@@ -30,16 +30,15 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
     }
 
     barAnims.forEach((anim, index) => {
-      // Create a wave-like effect with slight delay per bar
       const distFromCenter = Math.abs(index - BAR_COUNT / 2) / (BAR_COUNT / 2);
       const targetHeight = Math.max(
-        0.15,
-        metering * (1 - distFromCenter * 0.5) + Math.random() * 0.15
+        0.1,
+        metering * (1 - distFromCenter * 0.6) + Math.random() * 0.12
       );
 
       Animated.timing(anim, {
         toValue: targetHeight,
-        duration: 100,
+        duration: 80,
         useNativeDriver: false,
       }).start();
     });
@@ -55,11 +54,12 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
             {
               height: anim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [4, 60],
+                outputRange: [3, 56],
               }),
               backgroundColor: isRecording
                 ? Colors.recording
-                : Colors.textTertiary,
+                : Colors.border,
+              opacity: isRecording ? 0.85 : 0.4,
             },
           ]}
         />
@@ -77,8 +77,8 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   bar: {
-    width: 4,
-    borderRadius: 2,
-    minHeight: 4,
+    width: 3,
+    borderRadius: 1.5,
+    minHeight: 3,
   },
 });

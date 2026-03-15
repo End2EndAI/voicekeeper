@@ -36,7 +36,6 @@ export default function RecordScreen() {
     checkPermission();
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      // Cleanup recording if component unmounts while recording
       if (recordingRef.current) {
         recordingRef.current.stopAndUnloadAsync().catch(() => {});
       }
@@ -112,7 +111,6 @@ export default function RecordScreen() {
       setIsRecording(false);
       setMetering(0);
 
-      // Validate custom format has an example
       if (defaultFormat === 'custom' && !customExample) {
         showAlert(
           'Custom Template Missing',
@@ -122,7 +120,6 @@ export default function RecordScreen() {
         return;
       }
 
-      // Navigate to preview with audio URI
       router.replace({
         pathname: '/preview',
         params: {
@@ -163,22 +160,35 @@ export default function RecordScreen() {
   };
 
   const maxDurationFormatted = formatDuration(MAX_RECORDING_DURATION_MS);
+  const progress = Math.min(duration / MAX_RECORDING_DURATION_MS, 1);
 
   if (permissionGranted === false) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.permissionContainer}>
-          <Text style={styles.permissionIcon}>🎙️</Text>
-          <Text style={styles.permissionTitle}>Microphone Access Needed</Text>
+          <View style={styles.permIconCircle}>
+            <View style={styles.permMicBody} />
+            <View style={styles.permMicBase} />
+          </View>
+          <Text style={styles.permissionTitle}>Microphone Access</Text>
           <Text style={styles.permissionText}>
             VoiceKeeper needs microphone access to record voice notes. Please
             enable it in your device settings.
           </Text>
-          <Pressable style={styles.retryButton} onPress={checkPermission}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.permButton,
+              pressed && styles.permButtonPressed,
+            ]}
+            onPress={checkPermission}
+          >
+            <Text style={styles.permButtonText}>Try Again</Text>
           </Pressable>
-          <Pressable style={styles.cancelButton} onPress={() => router.back()}>
-            <Text style={styles.cancelButtonText}>Go Back</Text>
+          <Pressable
+            style={styles.permCancelButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.permCancelText}>Go Back</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -188,9 +198,22 @@ export default function RecordScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
-        <Pressable onPress={handleCancel} style={styles.cancelButton}>
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+        <Pressable
+          onPress={handleCancel}
+          style={({ pressed }) => [
+            styles.cancelButton,
+            pressed && { opacity: 0.6 },
+          ]}
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
+        <View style={styles.recordingIndicator}>
+          {isRecording && <View style={styles.recordingDot} />}
+          <Text style={styles.recordingLabel}>
+            {isRecording ? 'Recording' : 'Ready'}
+          </Text>
+        </View>
+        <View style={{ width: 60 }} />
       </View>
 
       <View style={styles.content}>
@@ -205,12 +228,27 @@ export default function RecordScreen() {
         </View>
 
         <Text style={styles.duration}>{formatDuration(duration)}</Text>
-        <Text style={styles.maxDuration}>Max: {maxDurationFormatted}</Text>
+
+        {/* Progress bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${progress * 100}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.maxDuration}>{maxDurationFormatted}</Text>
+        </View>
 
         <View style={styles.controls}>
           {!isRecording ? (
             <Pressable
-              style={styles.recordButton}
+              style={({ pressed }) => [
+                styles.recordButton,
+                pressed && { transform: [{ scale: 0.95 }] },
+              ]}
               onPress={startRecording}
               accessibilityLabel="Start recording"
             >
@@ -218,7 +256,10 @@ export default function RecordScreen() {
             </Pressable>
           ) : (
             <Pressable
-              style={styles.stopButton}
+              style={({ pressed }) => [
+                styles.stopButton,
+                pressed && { transform: [{ scale: 0.95 }] },
+              ]}
               onPress={handleStopRecording}
               accessibilityLabel="Stop recording"
             >
@@ -228,7 +269,7 @@ export default function RecordScreen() {
         </View>
 
         <Text style={styles.hint}>
-          {isRecording ? 'Tap to stop recording' : 'Tap to start recording'}
+          {isRecording ? 'Tap to stop' : 'Tap to start recording'}
         </Text>
       </View>
     </SafeAreaView>
@@ -242,24 +283,70 @@ const styles = StyleSheet.create({
   },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
-    padding: 16,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  cancelButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    minWidth: 60,
+  },
+  cancelText: {
+    color: Colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  recordingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  recordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.recording,
+  },
+  recordingLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 32,
   },
   permissionContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 40,
   },
-  permissionIcon: {
-    fontSize: 64,
-    marginBottom: 16,
+  permIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primarySubtle,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  permMicBody: {
+    width: 16,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+  },
+  permMicBase: {
+    width: 24,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: Colors.primary,
+    marginTop: 4,
   },
   permissionTitle: {
     fontSize: 22,
@@ -269,45 +356,95 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   permissionText: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  permButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    marginBottom: 12,
+    ...Colors.shadow.md,
+    shadowColor: Colors.primary,
+  },
+  permButtonPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  permButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  permCancelButton: {
+    padding: 12,
+  },
+  permCancelText: {
+    color: Colors.textTertiary,
+    fontSize: 15,
+    fontWeight: '500',
   },
   errorContainer: {
     backgroundColor: Colors.errorLight,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 24,
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 360,
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
   errorText: {
     color: Colors.error,
     fontSize: 14,
     textAlign: 'center',
+    fontWeight: '500',
   },
   waveformArea: {
     width: '100%',
-    maxWidth: 400,
-    marginBottom: 24,
+    maxWidth: 360,
+    marginBottom: 32,
   },
   duration: {
-    fontSize: 48,
-    fontWeight: '300',
+    fontSize: 56,
+    fontWeight: '200',
     color: Colors.text,
     fontVariant: ['tabular-nums'],
-    letterSpacing: 2,
+    letterSpacing: 4,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 280,
+    marginTop: 12,
+    marginBottom: 48,
+    gap: 12,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 3,
+    backgroundColor: Colors.border,
+    borderRadius: 1.5,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.recording,
+    borderRadius: 1.5,
   },
   maxDuration: {
-    fontSize: 14,
+    fontSize: 12,
     color: Colors.textTertiary,
-    marginTop: 4,
-    marginBottom: 40,
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
   },
   controls: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   recordButton: {
     width: 80,
@@ -338,32 +475,12 @@ const styles = StyleSheet.create({
   stopSquare: {
     width: 28,
     height: 28,
-    borderRadius: 4,
+    borderRadius: 6,
     backgroundColor: Colors.recording,
   },
   hint: {
     fontSize: 14,
     color: Colors.textTertiary,
-    marginTop: 12,
-  },
-  retryButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    marginBottom: 12,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    padding: 8,
-  },
-  cancelButtonText: {
-    color: Colors.primary,
-    fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });
