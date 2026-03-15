@@ -2,7 +2,7 @@
 
 > **Speak it. Keep it. Organized.**
 
-VoiceKeeper is a voice-first note-taking app — think Google Keep, but voice is the primary input. Speak your notes, and they are instantly transcribed and auto-formatted into the structure you want: bullet list, paragraph, action items, or meeting notes.
+VoiceKeeper is a voice-first note-taking app — think Google Keep, but voice is the primary input. Speak your notes, and they are instantly transcribed and auto-formatted into the structure you want: bullet list, paragraph, action items, meeting notes, or a fully custom template.
 
 ---
 
@@ -11,9 +11,11 @@ VoiceKeeper is a voice-first note-taking app — think Google Keep, but voice is
 1. **Tap to record** — one-tap recording with live waveform feedback
 2. **Auto-transcribe** — powered by OpenAI Whisper API
 3. **Auto-format** — your transcription is shaped into your chosen format
-4. **Save and browse** — card-based note grid (Google Keep style), with full-text search
+4. **Custom template** — define your own note structure by providing an example; the AI mirrors it
+5. **Custom instructions** — set persistent instructions (tone, language, length, etc.) that apply to every note regardless of format
+6. **Save and browse** — card-based note grid (Google Keep style), with full-text search
 
-**Supported formats:** Bullet List · Paragraph · Action Items · Meeting Notes
+**Supported formats:** Bullet List · Paragraph · Action Items · Meeting Notes · Custom Template
 
 ---
 
@@ -71,7 +73,10 @@ voicekeeper/
 ├── supabase/
 │   ├── migrations/
 │   │   ├── 001_initial_schema.sql
-│   │   └── 002_fix_new_user_trigger.sql
+│   │   ├── 002_fix_new_user_trigger.sql
+│   │   ├── 003_add_custom_format.sql
+│   │   ├── 004_fix_custom_format_constraint.sql
+│   │   └── 005_add_custom_instructions.sql
 │   └── functions/
 │       └── process-recording/
 │           └── index.ts          # Edge Function (Whisper + GPT)
@@ -218,11 +223,20 @@ The included `vercel.json` configures:
 
 **notes**: stores all voice notes with title, formatted text, raw transcription, format type, and optional audio URL. RLS ensures users can only access their own notes.
 
-**user_preferences**: stores the default format preference per user. Auto-created on signup via the `handle_new_user` trigger.
+**user_preferences**: stores per-user preferences: default format, custom template example, and custom instructions. Auto-created on signup via the `handle_new_user` trigger.
 
 ### Edge Function: process-recording
 
-Accepts a POST with `multipart/form-data` containing an `audio` file and `format_type` string. Returns:
+Accepts a POST with `multipart/form-data` containing:
+
+| Field | Required | Description |
+|---|---|---|
+| `audio` | ✅ | Audio file to transcribe |
+| `format_type` | ✅ | One of `bullet_list`, `paragraph`, `action_items`, `meeting_notes`, `custom` |
+| `custom_example` | — | Example note for `custom` format (mirrors structure) |
+| `custom_instructions` | — | Free-text instructions appended to every prompt (tone, language, etc.) |
+
+Returns:
 
 ```json
 {
