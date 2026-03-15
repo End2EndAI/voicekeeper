@@ -41,12 +41,21 @@ Good title: "App to benchmark LLM providers" — Bad title: "Je veux créer une 
 Always respond in the same language as the transcription.
 Respond ONLY with a valid JSON object with exactly two fields: "title" (string) and "content" (string containing the formatted note in markdown).`;
 
-function buildSystemPrompt(formatType: string, customExample?: string): string {
+function buildSystemPrompt(formatType: string, customExample?: string, customInstructions?: string): string {
+  let prompt: string;
+
   if (formatType === 'custom' && customExample) {
-    return `Format the transcription following the exact same structure and style as this example note:\n\n---\n${customExample}\n---\n\nApply this structure to the new transcription. Reformulate the content to match the style — do not copy the transcription verbatim.\n\n${SHARED_SUFFIX}`;
+    prompt = `Format the transcription following the exact same structure and style as this example note:\n\n---\n${customExample}\n---\n\nApply this structure to the new transcription. Reformulate the content to match the style — do not copy the transcription verbatim.\n\n${SHARED_SUFFIX}`;
+  } else {
+    prompt = `${SYSTEM_PROMPTS[formatType] || SYSTEM_PROMPTS['bullet_list']}\n\n${SHARED_SUFFIX}`;
   }
 
-  return `${SYSTEM_PROMPTS[formatType] || SYSTEM_PROMPTS['bullet_list']}\n\n${SHARED_SUFFIX}`;
+  // Append user custom instructions if provided (applies to all formats)
+  if (customInstructions && customInstructions.trim()) {
+    prompt += `\n\nAdditional user instructions (follow these closely): ${customInstructions.trim()}`;
+  }
+
+  return prompt;
 }
 
 async function transcribeAudio(audioFile: File | Blob): Promise<string> {
@@ -83,9 +92,10 @@ async function transcribeAudio(audioFile: File | Blob): Promise<string> {
 async function formatTranscription(
   transcription: string,
   formatType: string,
-  customExample?: string
+  customExample?: string,
+  customInstructions?: string
 ): Promise<{ title: string; content: string }> {
-  const systemPrompt = buildSystemPrompt(formatType, customExample);
+  const systemPrompt = buildSystemPrompt(formatType, customExample, customInstructions);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -137,6 +147,7 @@ serve(async (req: Request) => {
     const audioFile = formData.get('audio') as File | null;
     const formatType = formData.get('format_type') as string | null;
     const customExample = formData.get('custom_example') as string | null;
+    const customInstructions = formData.get('custom_instructions') as string | null;
 
     // Validate inputs
     if (!audioFile) {
@@ -178,7 +189,8 @@ serve(async (req: Request) => {
       const formatted = await formatTranscription(
         transcription,
         formatType,
-        customExample || undefined
+        customExample || undefined,
+        customInstructions || undefined
       );
       formattedText = formatted.content;
       title = formatted.title;

@@ -24,12 +24,14 @@ export default function PreviewScreen() {
     audioUri: string;
     formatType: string;
     customExample?: string;
+    customInstructions?: string;
   }>();
   const { createNote } = useNotes();
 
   const audioUri = params.audioUri || '';
   const formatType = (params.formatType || 'bullet_list') as FormatType;
   const customExample = params.customExample;
+  const customInstructions = params.customInstructions;
 
   const [processing, setProcessing] = useState(true);
   const [processingMessage, setProcessingMessage] = useState(
@@ -55,7 +57,8 @@ export default function PreviewScreen() {
       const processingResult = await processRecording(
         audioUri,
         formatType,
-        customExample || undefined
+        customExample || undefined,
+        customInstructions || undefined
       );
 
       setResult(processingResult);
