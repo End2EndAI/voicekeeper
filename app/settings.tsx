@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   Pressable,
   ScrollView,
@@ -18,7 +19,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { defaultFormat, setDefaultFormat } = usePreferences();
+  const { defaultFormat, customExample, setDefaultFormat, setCustomExample } =
+    usePreferences();
+
+  const [localCustomExample, setLocalCustomExample] = useState(customExample);
+  const [savingExample, setSavingExample] = useState(false);
+
+  // Sync local state when context updates
+  useEffect(() => {
+    setLocalCustomExample(customExample);
+  }, [customExample]);
 
   const handleSignOut = () => {
     showConfirm(
@@ -41,6 +51,20 @@ export default function SettingsScreen() {
       showAlert('Error', 'Failed to update preference.');
     }
   };
+
+  const handleSaveCustomExample = async () => {
+    setSavingExample(true);
+    try {
+      await setCustomExample(localCustomExample);
+      showAlert('Saved', 'Your custom template has been saved.');
+    } catch {
+      showAlert('Error', 'Failed to save custom template.');
+    } finally {
+      setSavingExample(false);
+    }
+  };
+
+  const hasCustomExampleChanged = localCustomExample !== customExample;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -91,6 +115,38 @@ export default function SettingsScreen() {
               </Pressable>
             ))}
           </View>
+        </View>
+
+        {/* Custom template editor — always visible so users can set it up */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Custom Template</Text>
+          <Text style={styles.sectionDesc}>
+            Paste an example of a note in your desired format. The AI will use
+            it as a model when you choose the "Custom" format.
+          </Text>
+          <TextInput
+            style={styles.customExampleInput}
+            value={localCustomExample}
+            onChangeText={setLocalCustomExample}
+            placeholder={`Example:\n\n## Summary\nBrief overview of the topic.\n\n## Key Points\n- First point\n- Second point\n\n## Next Steps\n1. Action one\n2. Action two`}
+            placeholderTextColor={Colors.textTertiary}
+            multiline
+            textAlignVertical="top"
+            accessibilityLabel="Custom template example"
+          />
+          <Pressable
+            style={[
+              styles.saveExampleButton,
+              (!hasCustomExampleChanged || savingExample) &&
+                styles.saveExampleButtonDisabled,
+            ]}
+            onPress={handleSaveCustomExample}
+            disabled={!hasCustomExampleChanged || savingExample}
+          >
+            <Text style={styles.saveExampleButtonText}>
+              {savingExample ? 'Saving...' : 'Save Template'}
+            </Text>
+          </Pressable>
         </View>
 
         <View style={styles.section}>
@@ -157,6 +213,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 16,
+    lineHeight: 20,
   },
   formatList: {
     gap: 10,
@@ -199,6 +256,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginLeft: 28,
+  },
+  customExampleInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 14,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+    minHeight: 180,
+    lineHeight: 22,
+    fontFamily: 'monospace',
+  },
+  saveExampleButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  saveExampleButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveExampleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   accountInfo: {
     backgroundColor: Colors.surface,
