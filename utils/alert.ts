@@ -1,39 +1,31 @@
 import { Alert, Platform } from 'react-native';
 
 /**
- * Cross-platform confirmation dialog.
- * On web, Alert.alert is a no-op, so we use window.confirm instead.
+ * Cross-platform alert that works on both native and web.
+ * React Native Web doesn't support Alert.alert natively,
+ * so we fall back to window.alert / window.confirm on web.
  */
+export const showAlert = (title: string, message?: string) => {
+  if (Platform.OS === 'web') {
+    window.alert(message ? `${title}\n\n${message}` : title);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
 export const showConfirm = (
   title: string,
   message: string,
-  onConfirm: () => void,
-  onCancel?: () => void
-): void => {
+  onConfirm: () => void
+) => {
   if (Platform.OS === 'web') {
-    const confirmed = window.confirm(`${title}\n\n${message}`);
-    if (confirmed) {
+    if (window.confirm(`${title}\n\n${message}`)) {
       onConfirm();
-    } else {
-      onCancel?.();
     }
-    return;
+  } else {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'OK', style: 'destructive', onPress: onConfirm },
+    ]);
   }
-
-  Alert.alert(title, message, [
-    { text: 'Cancel', style: 'cancel', onPress: onCancel },
-    { text: title.includes('Delete') || title.includes('Sign') ? title.split(' ')[0] : 'OK', style: 'destructive', onPress: onConfirm },
-  ]);
-};
-
-/**
- * Cross-platform alert (no buttons).
- * On web, Alert.alert is a no-op, so we use window.alert instead.
- */
-export const showAlert = (title: string, message?: string): void => {
-  if (Platform.OS === 'web') {
-    window.alert(message ? `${title}\n\n${message}` : title);
-    return;
-  }
-  Alert.alert(title, message);
 };

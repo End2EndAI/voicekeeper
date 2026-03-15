@@ -35,3 +35,24 @@ export const updateDefaultFormat = async (
   if (error) throw error;
   return data;
 };
+
+export const updateCustomExample = async (
+  customExample: string
+): Promise<UserPreferences> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .upsert(
+      { user_id: user.id, custom_example: customExample },
+      { onConflict: 'user_id' }
+    )
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};

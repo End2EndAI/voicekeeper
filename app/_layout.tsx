@@ -1,5 +1,5 @@
-import React from 'react';
-import { Stack } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { PreferencesProvider } from '../contexts/PreferencesContext';
@@ -7,8 +7,28 @@ import { NotesProvider } from '../contexts/NotesContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '../constants/colors';
 
-function RootLayoutNav() {
+function useProtectedRoute() {
   const { session, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const isOnLogin = segments[0] === 'login';
+
+    if (!session && !isOnLogin) {
+      router.replace('/login');
+    } else if (session && isOnLogin) {
+      router.replace('/');
+    }
+  }, [session, loading, segments]);
+
+  return { loading };
+}
+
+function RootLayoutNav() {
+  const { loading } = useProtectedRoute();
 
   if (loading) {
     return (
@@ -29,39 +49,34 @@ function RootLayoutNav() {
           contentStyle: { backgroundColor: Colors.background },
         }}
       >
-        {session ? (
-          <>
-            <Stack.Screen
-              name="index"
-              options={{ title: 'VoiceKeeper', headerShown: false }}
-            />
-            <Stack.Screen
-              name="record"
-              options={{
-                title: 'Record',
-                presentation: 'modal',
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="preview"
-              options={{ title: 'Preview', headerShown: false }}
-            />
-            <Stack.Screen
-              name="note/[id]"
-              options={{ title: 'Note', headerShown: false }}
-            />
-            <Stack.Screen
-              name="settings"
-              options={{ title: 'Settings', headerShown: false }}
-            />
-          </>
-        ) : (
-          <Stack.Screen
-            name="login"
-            options={{ title: 'VoiceKeeper', headerShown: false }}
-          />
-        )}
+        <Stack.Screen
+          name="index"
+          options={{ title: 'VoiceKeeper', headerShown: false }}
+        />
+        <Stack.Screen
+          name="login"
+          options={{ title: 'VoiceKeeper', headerShown: false }}
+        />
+        <Stack.Screen
+          name="record"
+          options={{
+            title: 'Record',
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="preview"
+          options={{ title: 'Preview', headerShown: false }}
+        />
+        <Stack.Screen
+          name="note/[id]"
+          options={{ title: 'Note', headerShown: false }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{ title: 'Settings', headerShown: false }}
+        />
       </Stack>
     </>
   );

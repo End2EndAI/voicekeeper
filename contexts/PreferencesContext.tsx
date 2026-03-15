@@ -13,11 +13,13 @@ import { DEFAULT_FORMAT } from '../constants/formats';
 
 interface PreferencesState {
   defaultFormat: FormatType;
+  customExample: string;
   loading: boolean;
 }
 
 interface PreferencesContextType extends PreferencesState {
   setDefaultFormat: (format: FormatType) => Promise<void>;
+  setCustomExample: (example: string) => Promise<void>;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(
@@ -30,6 +32,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
   const { session } = useAuth();
   const [state, setState] = useState<PreferencesState>({
     defaultFormat: DEFAULT_FORMAT,
+    customExample: '',
     loading: true,
   });
 
@@ -37,7 +40,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     if (session) {
       loadPreferences();
     } else {
-      setState({ defaultFormat: DEFAULT_FORMAT, loading: false });
+      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', loading: false });
     }
   }, [session]);
 
@@ -46,6 +49,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
       const prefs = await preferencesService.fetchPreferences();
       setState({
         defaultFormat: prefs?.default_format ?? DEFAULT_FORMAT,
+        customExample: prefs?.custom_example ?? '',
         loading: false,
       });
     } catch (error) {
@@ -65,11 +69,23 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, []);
 
+  const setCustomExample = useCallback(async (example: string) => {
+    const previous = state.customExample;
+    setState((prev) => ({ ...prev, customExample: example }));
+    try {
+      await preferencesService.updateCustomExample(example);
+    } catch (error) {
+      setState((prev) => ({ ...prev, customExample: previous }));
+      throw error;
+    }
+  }, [state.customExample]);
+
   return (
     <PreferencesContext.Provider
       value={{
         ...state,
         setDefaultFormat,
+        setCustomExample,
       }}
     >
       {children}
