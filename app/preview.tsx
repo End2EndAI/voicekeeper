@@ -39,6 +39,7 @@ export default function PreviewScreen() {
   );
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
   const [editableTitle, setEditableTitle] = useState('');
   const [editableText, setEditableText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -65,7 +66,11 @@ export default function PreviewScreen() {
       setEditableTitle(processingResult.title);
       setEditableText(processingResult.formatted_text);
     } catch (err: any) {
-      setError(err.message || 'Failed to process recording');
+      const msg = err.message || 'Failed to process recording';
+      if (msg.includes('daily limit') || msg.includes('daily_limit_reached')) {
+        setDailyLimitReached(true);
+      }
+      setError(msg);
     } finally {
       setProcessing(false);
     }
@@ -98,6 +103,29 @@ export default function PreviewScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <LoadingOverlay visible={true} message={processingMessage} />
+      </SafeAreaView>
+    );
+  }
+
+  if (dailyLimitReached) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <View style={styles.limitIconCircle}>
+            <Text style={styles.limitIconText}>5/5</Text>
+          </View>
+          <Text style={styles.errorTitle}>Daily Limit Reached</Text>
+          <Text style={styles.errorMessage}>
+            You've used all 5 free notes for today. This limit helps us keep VoiceKeeper free while covering AI processing costs.
+          </Text>
+          <Text style={styles.limitSubtext}>
+            Your notes reset every day at midnight UTC.{'\n'}
+            Subscription plans are coming soon!
+          </Text>
+          <Pressable style={styles.errorCancelPressable} onPress={handleCancel}>
+            <Text style={styles.limitGoBackText}>Go Back</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     );
   }
@@ -406,5 +434,31 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     fontSize: 15,
     fontWeight: '500',
+  },
+  limitIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primarySubtle,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  limitIconText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  limitSubtext: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  limitGoBackText: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

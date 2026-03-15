@@ -1,5 +1,6 @@
 // @ts-nocheck - Deno runtime
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -139,6 +140,43 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
         { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    // Check daily note limit (free tier: 5/day)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: allowance, error: allowanceError } = await adminClient.rpc(
+      'check_note_allowance',
+      { p_user_id: user.id }
+    );
+
+    if (allowanceError) {
+      console.error('Allowance check error:', allowanceError);
+    } else if (!allowance.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: 'daily_limit_reached',
+          message: `You've reached your daily limit of ${allowance.daily_limit} notes. Subscription plans are coming soon!`,
+          daily_count: allowance.daily_count,
+          daily_limit: allowance.daily_limit,
+        }),
+        { status: 429, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
 
