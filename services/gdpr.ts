@@ -1,0 +1,37 @@
+import { supabase } from './supabase';
+
+/**
+ * Export all user data (GDPR Art. 20 - Right to data portability)
+ * Returns a JSON object with all user data
+ */
+export const exportUserData = async (): Promise<object> => {
+  const { data, error } = await supabase.rpc('export_user_data');
+  if (error) throw new Error(`Data export failed: ${error.message}`);
+  return data;
+};
+
+/**
+ * Delete user account and all associated data (GDPR Art. 17 - Right to erasure)
+ * Calls the delete-account Edge Function which handles:
+ * - Audio file cleanup from storage
+ * - Notes deletion
+ * - Preferences deletion
+ * - Audit log entry
+ * - Auth user deletion
+ */
+export const deleteAccount = async (): Promise<void> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase.functions.invoke('delete-account', {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (error) throw new Error(`Account deletion failed: ${error.message}`);
+  if (data && !data.success) throw new Error(data.error || 'Account deletion failed');
+
+  // Sign out locally after server-side deletion
+  await supabase.auth.signOut();
+};

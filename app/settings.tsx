@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  Share,
+  Platform,
 } from 'react-native';
 import { showConfirm, showAlert } from '../utils/alert';
 import { useRouter } from 'expo-router';
@@ -15,6 +17,7 @@ import { FORMAT_OPTIONS } from '../constants/formats';
 import { Colors } from '../constants/colors';
 import { FormatType } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { exportUserData, deleteAccount } from '../services/gdpr';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -32,6 +35,8 @@ export default function SettingsScreen() {
   const [savingExample, setSavingExample] = useState(false);
   const [localCustomInstructions, setLocalCustomInstructions] = useState(customInstructions);
   const [savingInstructions, setSavingInstructions] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setLocalCustomExample(customExample);
@@ -89,6 +94,60 @@ export default function SettingsScreen() {
 
   const hasCustomInstructionsChanged = localCustomInstructions !== customInstructions;
   const hasCustomExampleChanged = localCustomExample !== customExample;
+
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const data = await exportUserData();
+      const jsonString = JSON.stringify(data, null, 2);
+
+      if (Platform.OS === 'web') {
+        // Download as file on web
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `voicekeeper-export-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showAlert('Export Complete', 'Your data has been downloaded.');
+      } else {
+        // Share on mobile
+        await Share.share({
+          message: jsonString,
+          title: 'VoiceKeeper Data Export',
+        });
+      }
+    } catch (error: any) {
+      showAlert('Export Failed', error.message || 'Could not export your data.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    showConfirm(
+      'Delete Account',
+      'This will permanently delete your account and ALL your data (notes, recordings, preferences). This action cannot be undone.\n\nAre you sure?',
+      () => {
+        // Second confirmation for destructive action
+        showConfirm(
+          'Final Confirmation',
+          'This is irreversible. All your voice notes and recordings will be permanently erased.',
+          async () => {
+            setDeleting(true);
+            try {
+              await deleteAccount();
+              // Auth state change will redirect to login
+            } catch (error: any) {
+              showAlert('Deletion Failed', error.message || 'Could not delete your account. Please try again.');
+              setDeleting(false);
+            }
+          }
+        );
+      }
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -265,6 +324,65 @@ export default function SettingsScreen() {
             onPress={handleSignOut}
           >
             <Text style={styles.signOutText}>Sign Out</Text>
+          </Pressable>
+        </View>
+
+        {/* Privacy & Data */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Privacy & Data</Text>
+          <Text style={styles.sectionDesc}>
+            Manage your personal data. You can export all your data or permanently delete your account.
+          </Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.gdprButton,
+              pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              exporting && { opacity: 0.5 },
+            ]}
+            onPress={handleExportData}
+            disabled={exporting}
+          >
+            <Text style={styles.gdprButtonText}>
+              {exporting ? 'Exporting...' : 'Export My Data'}
+            </Text>
+            <Text style={styles.gdprButtonDesc}>
+              Download all your notes and preferences as JSON
+            </Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.deleteAccountButton,
+              pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              deleting && { opacity: 0.5 },
+            ]}
+            onPress={handleDeleteAccount}
+            disabled={deleting}
+          >
+            <Text style={styles.deleteAccountText}>
+              {deleting ? 'Deleting...' : 'Delete My Account'}
+            </Text>
+            <Text style={styles.deleteAccountDesc}>
+              Permanently erase all data including notes, recordings, and preferences
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Legal */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Legal</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.legalLink,
+              pressed && { opacity: 0.6 },
+            ]}
+            onPress={() => {
+              showAlert(
+                'Privacy Policy',
+                'Your voice recordings are processed by OpenAI for transcription and formatting. Your data is stored securely in the EU (Frankfurt). You can export or delete your data at any time from this screen.\n\nFull privacy policy:\nhttps://github.com/End2EndAI/voicekeeper/blob/main/PRIVACY_POLICY.md'
+              );
+            }}
+          >
+            <Text style={styles.legalLinkText}>Privacy Policy</Text>
           </Pressable>
         </View>
 
@@ -470,6 +588,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
     paddingBottom: 16,
+  },
+  gdprButton: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    marginBottom: 12,
+  },
+  gdprButtonText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  gdprButtonDesc: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  deleteAccountButton: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderWidth: 1.5,
+    borderColor: Colors.error,
+  },
+  deleteAccountText: {
+    color: Colors.error,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  deleteAccountDesc: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  legalLink: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  legalLinkText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '500',
   },
   appInfo: {
     fontSize: 13,
