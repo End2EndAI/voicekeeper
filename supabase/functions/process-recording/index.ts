@@ -23,11 +23,22 @@ const SYSTEM_PROMPTS: Record<string, string> = {
   action_items:
     'Extract all action items and tasks from this transcription. Rephrase each as a clear, actionable task using markdown checkboxes (- [ ] task). Do not copy sentences from the transcription.',
   meeting_notes:
-    'Structure this transcription as meeting notes with the following markdown sections: ## Key Topics, ## Decisions Made, ## Action Items. Reformulate all content — do not copy sentences from the transcription. Use bullet points within each section.',
+    `Structure this transcription as meeting notes. Reformulate all content — do not copy sentences from the transcription. Use the following markdown structure:
+
+## Key Topics
+- ...
+
+## Decisions Made
+- ...
+
+## Action Items
+- ...`,
 };
 
 const SHARED_SUFFIX =
-  'Also generate an expressive, descriptive title that captures the core subject or idea (e.g. \'App to benchmark LLM providers\'). Do not use the first words of the transcription as the title. Always respond in the same language as the transcription.';
+  `Also generate an expressive, descriptive title that captures the core subject or idea.
+Good title: "App to benchmark LLM providers" — Bad title: "Je veux créer une application" (first words of the transcription).
+Always respond in the same language as the transcription.`;
 
 function buildSystemPrompt(formatType: string, customExample?: string): string {
   if (formatType === 'custom' && customExample) {
@@ -96,8 +107,14 @@ async function formatTranscription(
           schema: {
             type: 'object',
             properties: {
-              title: { type: 'string' },
-              content: { type: 'string' },
+              title: {
+                type: 'string',
+                description: 'Expressive, descriptive title capturing the core subject (e.g. "App to benchmark LLM providers"). Never the first words of the transcription.',
+              },
+              content: {
+                type: 'string',
+                description: 'The reformulated note content in markdown. Never a verbatim copy of the transcription.',
+              },
             },
             required: ['title', 'content'],
             additionalProperties: false,
