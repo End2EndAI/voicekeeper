@@ -3,6 +3,7 @@
     "name": "VoiceKeeper",
     "slug": "voicekeeper",
     "version": "1.0.0",
+    "icon": "./assets/logo.png",
     "orientation": "portrait",
     "scheme": "voicekeeper",
     "userInterfaceStyle": "light",
@@ -21,11 +22,14 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#4F46E5"
       },
       "package": "com.voicekeeper.app",
       "permissions": [
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -37,6 +41,12 @@
       "expo-router",
       "expo-secure-store",
       "expo-audio"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5ac0d3a9-c322-4305-b745-fc12b582b3ff"
+      }
+    }
   }
 }
