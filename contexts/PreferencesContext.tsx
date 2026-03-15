@@ -14,12 +14,14 @@ import { DEFAULT_FORMAT } from '../constants/formats';
 interface PreferencesState {
   defaultFormat: FormatType;
   customExample: string;
+  customInstructions: string;
   loading: boolean;
 }
 
 interface PreferencesContextType extends PreferencesState {
   setDefaultFormat: (format: FormatType) => Promise<void>;
   setCustomExample: (example: string) => Promise<void>;
+  setCustomInstructions: (instructions: string) => Promise<void>;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(
@@ -33,6 +35,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
   const [state, setState] = useState<PreferencesState>({
     defaultFormat: DEFAULT_FORMAT,
     customExample: '',
+    customInstructions: '',
     loading: true,
   });
 
@@ -40,7 +43,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     if (session) {
       loadPreferences();
     } else {
-      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', loading: false });
+      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', loading: false });
     }
   }, [session]);
 
@@ -50,6 +53,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
       setState({
         defaultFormat: prefs?.default_format ?? DEFAULT_FORMAT,
         customExample: prefs?.custom_example ?? '',
+        customInstructions: prefs?.custom_instructions ?? '',
         loading: false,
       });
     } catch (error) {
@@ -80,12 +84,24 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [state.customExample]);
 
+  const setCustomInstructions = useCallback(async (instructions: string) => {
+    const previous = state.customInstructions;
+    setState((prev) => ({ ...prev, customInstructions: instructions }));
+    try {
+      await preferencesService.updateCustomInstructions(instructions);
+    } catch (error) {
+      setState((prev) => ({ ...prev, customInstructions: previous }));
+      throw error;
+    }
+  }, [state.customInstructions]);
+
   return (
     <PreferencesContext.Provider
       value={{
         ...state,
         setDefaultFormat,
         setCustomExample,
+        setCustomInstructions,
       }}
     >
       {children}

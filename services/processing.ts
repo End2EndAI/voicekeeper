@@ -5,7 +5,8 @@ import { ProcessingResult, FormatType } from '../types';
 export const processRecording = async (
   audioUri: string,
   formatType: FormatType,
-  customExample?: string
+  customExample?: string,
+  customInstructions?: string
 ): Promise<ProcessingResult> => {
   const {
     data: { session },
@@ -25,6 +26,11 @@ export const processRecording = async (
   // Pass custom example when format is custom
   if (formatType === 'custom' && customExample) {
     formData.append('custom_example', customExample);
+  }
+
+  // Pass custom instructions (applies to all formats)
+  if (customInstructions) {
+    formData.append('custom_instructions', customInstructions);
   }
 
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
