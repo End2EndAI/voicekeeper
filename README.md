@@ -227,6 +227,18 @@ The included `vercel.json` configures:
 
 ### Edge Function: process-recording
 
+#### Why an Edge Function instead of calling OpenAI directly from the app?
+
+Calling OpenAI directly from a mobile or web app would require shipping the API key inside the client bundle — where it can be extracted by anyone with access to the app. The Edge Function acts as a secure server-side proxy:
+
+- The `OPENAI_API_KEY` is stored as a Supabase secret, never exposed to the client
+- The function validates the user's Supabase JWT before forwarding the request to OpenAI, so only authenticated users can trigger API calls
+- It centralizes all AI logic (transcription + formatting) in one place, making it easy to iterate on prompts, swap models, or add rate limiting without a new app release
+
+The app sends audio to the Edge Function → the function calls Whisper for transcription, then GPT for formatting → the result is returned to the app and saved to Postgres.
+
+#### Input
+
 Accepts a POST with `multipart/form-data` containing:
 
 | Field | Required | Description |
