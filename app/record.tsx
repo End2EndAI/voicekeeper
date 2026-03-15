@@ -46,41 +46,29 @@ export default function RecordScreen() {
   const checkPermission = async () => {
     const granted = await requestMicrophonePermission();
     setPermissionGranted(granted);
+    if (granted) {
+      startRecordingWithPermission();
+    }
   };
 
-  const startRecording = async () => {
+  const startRecordingWithPermission = async () => {
     try {
       setError(null);
-
-      if (!permissionGranted) {
-        const granted = await requestMicrophonePermission();
-        if (!granted) {
-          setError(
-            'Microphone permission is required. Please enable it in your device settings.'
-          );
-          return;
-        }
-        setPermissionGranted(true);
-      }
-
       const recording = await prepareRecording();
       recordingRef.current = recording;
       setIsRecording(true);
       setDuration(0);
 
-      // Update duration and metering
       intervalRef.current = setInterval(async () => {
         if (recordingRef.current) {
           try {
             const status = await recordingRef.current.getStatusAsync();
             if (status.isRecording) {
               setDuration(status.durationMillis);
-              // Normalize metering
               if (status.metering !== undefined) {
                 const normalized = Math.max(0, (status.metering + 60) / 60);
                 setMetering(Math.min(1, normalized));
               }
-              // Auto-stop at max duration
               if (status.durationMillis >= MAX_RECORDING_DURATION_MS) {
                 handleStopRecording();
               }
@@ -94,6 +82,20 @@ export default function RecordScreen() {
       setError('Failed to start recording. Please try again.');
       console.error('Recording start error:', err);
     }
+  };
+
+  const startRecording = async () => {
+    if (!permissionGranted) {
+      const granted = await requestMicrophonePermission();
+      if (!granted) {
+        setError(
+          'Microphone permission is required. Please enable it in your device settings.'
+        );
+        return;
+      }
+      setPermissionGranted(true);
+    }
+    startRecordingWithPermission();
   };
 
   const handleStopRecording = useCallback(async () => {
