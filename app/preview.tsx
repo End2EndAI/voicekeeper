@@ -103,14 +103,22 @@ export default function PreviewScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
+          <View style={styles.errorIconCircle}>
+            <Text style={styles.errorIconText}>!</Text>
+          </View>
           <Text style={styles.errorTitle}>Processing Failed</Text>
           <Text style={styles.errorMessage}>{error}</Text>
-          <Pressable style={styles.retryButton} onPress={processAudio}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.retryButton,
+              pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+            ]}
+            onPress={processAudio}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
           </Pressable>
-          <Pressable style={styles.cancelPressable} onPress={handleCancel}>
-            <Text style={styles.cancelText}>Go Back</Text>
+          <Pressable style={styles.errorCancelPressable} onPress={handleCancel}>
+            <Text style={styles.errorCancelText}>Go Back</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -120,13 +128,22 @@ export default function PreviewScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
-        <Pressable onPress={handleCancel} style={styles.cancelPressable}>
+        <Pressable
+          onPress={handleCancel}
+          style={({ pressed }) => [
+            styles.topButton,
+            pressed && { opacity: 0.6 },
+          ]}
+        >
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
         <Text style={styles.topTitle}>Preview</Text>
         <Pressable
           onPress={() => setIsEditing(!isEditing)}
-          style={styles.editPressable}
+          style={({ pressed }) => [
+            styles.topButton,
+            pressed && { opacity: 0.6 },
+          ]}
         >
           <Text style={styles.editText}>{isEditing ? 'Done' : 'Edit'}</Text>
         </Pressable>
@@ -181,7 +198,11 @@ export default function PreviewScreen() {
 
       <View style={styles.bottomBar}>
         <Pressable
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          style={({ pressed }) => [
+            styles.saveButton,
+            saving && styles.saveButtonDisabled,
+            pressed && !saving && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+          ]}
           onPress={handleSave}
           disabled={saving}
           accessibilityLabel="Save note"
@@ -218,47 +239,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.borderLight,
+  },
+  topButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    minWidth: 56,
   },
   topTitle: {
     fontSize: 17,
     fontWeight: '600',
     color: Colors.text,
   },
-  cancelPressable: {
-    padding: 4,
-  },
   cancelText: {
-    color: Colors.primary,
+    color: Colors.textSecondary,
     fontSize: 16,
     fontWeight: '500',
-  },
-  editPressable: {
-    padding: 4,
   },
   editText: {
     color: Colors.primary,
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'right',
   },
   scrollContent: {
     flex: 1,
   },
   scrollContentContainer: {
-    padding: 20,
-    paddingBottom: 100,
+    padding: 24,
+    paddingBottom: 120,
   },
   titleSection: {
-    marginTop: 16,
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: Colors.text,
+    letterSpacing: -0.3,
+    lineHeight: 32,
   },
   titleInput: {
     fontSize: 24,
@@ -266,40 +289,36 @@ const styles = StyleSheet.create({
     color: Colors.text,
     borderBottomWidth: 2,
     borderBottomColor: Colors.primary,
-    paddingBottom: 8,
+    paddingBottom: 10,
+    letterSpacing: -0.3,
   },
   textSection: {
     marginBottom: 24,
-  },
-  text: {
-    fontSize: 16,
-    color: Colors.text,
-    lineHeight: 26,
   },
   textInput: {
     fontSize: 16,
     color: Colors.text,
     lineHeight: 26,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: 10,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
     minHeight: 200,
     backgroundColor: Colors.surface,
   },
   rawSection: {
     backgroundColor: Colors.surfaceHover,
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 14,
+    padding: 18,
     marginTop: 8,
   },
   rawLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.textTertiary,
-    marginBottom: 8,
+    marginBottom: 10,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   rawText: {
     fontSize: 14,
@@ -308,34 +327,47 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   bottomBar: {
-    padding: 16,
+    padding: 20,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: Colors.borderLight,
     backgroundColor: Colors.surface,
   },
   saveButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
+    ...Colors.shadow.md,
+    shadowColor: Colors.primary,
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 40,
   },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+  errorIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.errorLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorIconText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.error,
   },
   errorTitle: {
     fontSize: 22,
@@ -344,22 +376,32 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   errorMessage: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
+    lineHeight: 22,
+    marginBottom: 28,
   },
   retryButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 10,
+    borderRadius: 14,
     paddingHorizontal: 32,
     paddingVertical: 14,
     marginBottom: 12,
+    ...Colors.shadow.md,
+    shadowColor: Colors.primary,
   },
   retryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorCancelPressable: {
+    padding: 12,
+  },
+  errorCancelText: {
+    color: Colors.textTertiary,
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

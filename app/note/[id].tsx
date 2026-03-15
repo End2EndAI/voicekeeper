@@ -32,9 +32,15 @@ export default function NoteDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text style={styles.errorText}>Note not found</Text>
-          <Pressable onPress={() => router.back()} style={styles.backPressable}>
-            <Text style={styles.backText}>Go Back</Text>
+          <Text style={styles.notFoundText}>Note not found</Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [
+              styles.goBackButton,
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <Text style={styles.goBackText}>Go Back</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -80,18 +86,34 @@ export default function NoteDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} style={styles.backPressable}>
-          <Text style={styles.backText}>← Back</Text>
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [
+            styles.backPressable,
+            pressed && { opacity: 0.6 },
+          ]}
+        >
+          <Text style={styles.backText}>Back</Text>
         </Pressable>
         <View style={styles.topActions}>
           {isEditing ? (
             <>
-              <Pressable onPress={handleCancelEdit} style={styles.actionButton}>
+              <Pressable
+                onPress={handleCancelEdit}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
                 <Text style={styles.cancelActionText}>Cancel</Text>
               </Pressable>
               <Pressable
                 onPress={handleSave}
-                style={[styles.actionButton, saving && { opacity: 0.5 }]}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  saving && { opacity: 0.4 },
+                  pressed && { opacity: 0.6 },
+                ]}
                 disabled={saving}
               >
                 <Text style={styles.saveActionText}>
@@ -107,11 +129,20 @@ export default function NoteDetailScreen() {
                   setEditText(note.formatted_text);
                   setIsEditing(true);
                 }}
-                style={styles.actionButton}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && { opacity: 0.6 },
+                ]}
               >
                 <Text style={styles.editActionText}>Edit</Text>
               </Pressable>
-              <Pressable onPress={handleDelete} style={styles.actionButton}>
+              <Pressable
+                onPress={handleDelete}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
                 <Text style={styles.deleteText}>Delete</Text>
               </Pressable>
             </>
@@ -188,30 +219,48 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
+  },
+  notFoundText: {
+    fontSize: 17,
+    color: Colors.textSecondary,
+    marginBottom: 20,
+  },
+  goBackButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  goBackText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.borderLight,
   },
   backPressable: {
-    padding: 4,
+    paddingVertical: 4,
   },
   backText: {
     color: Colors.primary,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   topActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   actionButton: {
-    padding: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   editActionText: {
     color: Colors.primary,
@@ -231,79 +280,73 @@ const styles = StyleSheet.create({
   deleteText: {
     color: Colors.error,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   scrollContent: {
     flex: 1,
   },
   scrollContentContainer: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 24,
+    paddingBottom: 48,
   },
   meta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   date: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textTertiary,
+    fontWeight: '500',
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 16,
+    marginBottom: 20,
+    letterSpacing: -0.3,
+    lineHeight: 34,
   },
   titleInput: {
     fontSize: 26,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 16,
+    marginBottom: 20,
     borderBottomWidth: 2,
     borderBottomColor: Colors.primary,
-    paddingBottom: 8,
-  },
-  text: {
-    fontSize: 16,
-    color: Colors.text,
-    lineHeight: 26,
+    paddingBottom: 10,
+    letterSpacing: -0.3,
   },
   textInput: {
     fontSize: 16,
     color: Colors.text,
     lineHeight: 26,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: 10,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
     minHeight: 250,
     backgroundColor: Colors.surface,
   },
   rawSection: {
     backgroundColor: Colors.surfaceHover,
-    borderRadius: 10,
-    padding: 16,
-    marginTop: 24,
+    borderRadius: 14,
+    padding: 18,
+    marginTop: 28,
   },
   rawLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.textTertiary,
-    marginBottom: 8,
+    marginBottom: 10,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   rawText: {
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 22,
     fontStyle: 'italic',
-  },
-  errorText: {
-    fontSize: 18,
-    color: Colors.textSecondary,
-    marginBottom: 16,
   },
 });

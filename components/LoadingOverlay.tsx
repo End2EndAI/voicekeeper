@@ -17,7 +17,9 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
     <Modal transparent animationType="fade" visible={visible}>
       <View style={styles.overlay}>
         <View style={styles.content}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <View style={styles.spinnerContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
           <Text style={styles.message}>{message}</Text>
         </View>
       </View>
@@ -34,21 +36,26 @@ const styles = StyleSheet.create({
   },
   content: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 32,
+    borderRadius: 24,
+    padding: 36,
     alignItems: 'center',
-    minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    minWidth: 220,
+    ...Colors.shadow.lg,
+  },
+  spinnerContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primarySubtle,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   message: {
-    marginTop: 16,
-    fontSize: 16,
-    color: Colors.text,
+    fontSize: 15,
+    color: Colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
+    lineHeight: 22,
   },
 });
