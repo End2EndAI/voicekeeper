@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { useRouter, Redirect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useNotes } from '../contexts/NotesContext';
-import { useAuth } from '../contexts/AuthContext';
 import { NoteGrid } from '../components/NoteGrid';
 import { SearchBar } from '../components/SearchBar';
 import { RecordButton } from '../components/RecordButton';
@@ -12,14 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { session, loading: authLoading } = useAuth();
   const { filteredNotes, loading, searchQuery, setSearchQuery, fetchNotes } =
     useNotes();
-  const { user } = useAuth();
-
-  if (!authLoading && !session) {
-    return <Redirect href="/login" />;
-  }
 
   const handleNotePress = (note: Note) => {
     router.push(`/note/${note.id}`);

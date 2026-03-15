@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  Platform,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
@@ -13,6 +11,7 @@ import { AudioWaveform } from '../components/AudioWaveform';
 import { Colors } from '../constants/colors';
 import { MAX_RECORDING_DURATION_MS } from '../constants/formats';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { showAlert } from '../utils/alert';
 import {
   requestMicrophonePermission,
   prepareRecording,
@@ -22,7 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RecordScreen() {
   const router = useRouter();
-  const { defaultFormat } = usePreferences();
+  const { defaultFormat, customExample } = usePreferences();
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
   const [metering, setMetering] = useState(0);
@@ -111,17 +110,33 @@ export default function RecordScreen() {
       setIsRecording(false);
       setMetering(0);
 
+      // Validate custom format has an example
+      if (defaultFormat === 'custom' && !customExample) {
+        showAlert(
+          'Custom Template Missing',
+          'Please set a custom template in Settings before using the Custom format.'
+        );
+        router.back();
+        return;
+      }
+
       // Navigate to preview with audio URI
       router.replace({
         pathname: '/preview',
-        params: { audioUri: uri, formatType: defaultFormat },
+        params: {
+          audioUri: uri,
+          formatType: defaultFormat,
+          ...(defaultFormat === 'custom' && customExample
+            ? { customExample }
+            : {}),
+        },
       });
     } catch (err: any) {
       setError('Failed to stop recording. Please try again.');
       setIsRecording(false);
       console.error('Recording stop error:', err);
     }
-  }, [defaultFormat, router]);
+  }, [defaultFormat, customExample, router]);
 
   const handleCancel = async () => {
     if (recordingRef.current) {

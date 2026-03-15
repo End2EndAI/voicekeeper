@@ -12,6 +12,7 @@ const VALID_FORMATS = [
   'paragraph',
   'action_items',
   'meeting_notes',
+  'custom',
 ];
 
 const SYSTEM_PROMPTS: Record<string, string> = {
@@ -24,6 +25,14 @@ const SYSTEM_PROMPTS: Record<string, string> = {
   meeting_notes:
     'Structure this transcription as meeting notes with the following markdown sections: ## Key Topics, ## Decisions Made, ## Action Items. Use bullet points within each section.',
 };
+
+function buildSystemPrompt(formatType: string, customExample?: string): string {
+  if (formatType === 'custom' && customExample) {
+    return `Format the transcription following the exact same structure and style as this example note:\n\n---\n${customExample}\n---\n\nApply this structure to the new transcription. Keep the same formatting, headings, and organization pattern.`;
+  }
+
+  return SYSTEM_PROMPTS[formatType] || SYSTEM_PROMPTS['bullet_list'];
+}
 
 async function transcribeAudio(audioFile: File | Blob): Promise<string> {
   const filename = (audioFile as File).name || 'recording.m4a';
@@ -58,9 +67,10 @@ async function transcribeAudio(audioFile: File | Blob): Promise<string> {
 
 async function formatTranscription(
   transcription: string,
-  formatType: string
+  formatType: string,
+  customExample?: string
 ): Promise<{ title: string; content: string }> {
-  const systemPrompt = SYSTEM_PROMPTS[formatType];
+  const systemPrompt = buildSystemPrompt(formatType, customExample);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -115,6 +125,7 @@ serve(async (req: Request) => {
     const formData = await req.formData();
     const audioFile = formData.get('audio') as File | null;
     const formatType = formData.get('format_type') as string | null;
+    const customExample = formData.get('custom_example') as string | null;
 
     // Validate inputs
     if (!audioFile) {
@@ -133,6 +144,15 @@ serve(async (req: Request) => {
       );
     }
 
+    if (formatType === 'custom' && !customExample) {
+      return new Response(
+        JSON.stringify({
+          error: 'custom_example is required when format_type is "custom"',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
     // Step 1: Transcribe audio with Whisper
     console.log('Starting transcription...');
     const transcription = await transcribeAudio(audioFile as File);
@@ -144,7 +164,11 @@ serve(async (req: Request) => {
 
     try {
       console.log('Starting formatting...');
-      const formatted = await formatTranscription(transcription, formatType);
+      const formatted = await formatTranscription(
+        transcription,
+        formatType,
+        customExample || undefined
+      );
       formattedText = formatted.content;
       title = formatted.title;
       console.log(`Formatting completed in ${Date.now() - startTime}ms`);

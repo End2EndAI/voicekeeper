@@ -32,6 +32,12 @@ export const FORMAT_OPTIONS: FormatOption[] = [
     description: 'Structured with topics, decisions, and actions',
     icon: '📋',
   },
+  {
+    value: 'custom',
+    label: 'Custom',
+    description: 'Your own format, defined by an example',
+    icon: '✏️',
+  },
 ];
 
 export const FORMAT_LABELS: Record<FormatType, string> = {
@@ -39,6 +45,7 @@ export const FORMAT_LABELS: Record<FormatType, string> = {
   paragraph: 'Paragraph',
   action_items: 'Action Items',
   meeting_notes: 'Meeting Notes',
+  custom: 'Custom',
 };
 
 export const DEFAULT_FORMAT: FormatType = 'bullet_list';
