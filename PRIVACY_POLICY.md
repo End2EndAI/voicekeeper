@@ -2,7 +2,7 @@
 
 **Last updated:** March 15, 2026
 **Data Controller:** [Louis FONTAINE / End2EndAI], micro-entreprise registered in France (SIRET: 953 238 821 00011)
-**Contact:** privacy@end2endai.com
+**Contact:** valentinedaywebsite@proton.me
 
 ---
 
