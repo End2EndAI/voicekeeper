@@ -2,20 +2,40 @@
 
 > **Speak it. Keep it. Organized.**
 
-VoiceKeeper is a voice-first note-taking app — think Google Keep, but voice is the primary input. Speak your notes, and they are instantly transcribed and auto-formatted into the structure you want: bullet list, paragraph, action items, meeting notes, or a fully custom template.
+VoiceKeeper is a voice-first note-taking app. Tap to record, and your voice is instantly transcribed and auto-formatted into the structure you want — bullet lists, paragraphs, action items, meeting notes, or a fully custom template you define by example.
+
+Built with React Native (Expo), Supabase, and OpenAI. Runs on iOS, Android, and Web.
 
 ---
 
-## What it does
+## Features
 
-1. **Tap to record** — one-tap recording with live waveform feedback
-2. **Auto-transcribe** — powered by OpenAI Whisper API
-3. **Auto-format** — your transcription is shaped into your chosen format
-4. **Custom template** — define your own note structure by providing an example; the AI mirrors it
-5. **Custom instructions** — set persistent instructions (tone, language, length, etc.) that apply to every note regardless of format
-6. **Save and browse** — card-based note grid (Google Keep style), with full-text search
+- **One-tap recording** with live waveform feedback
+- **Auto-transcription** powered by OpenAI Whisper
+- **Auto-formatting** into your chosen structure (5 built-in formats + custom templates)
+- **Custom instructions** — set persistent rules for tone, language, length, etc.
+- **Card-based grid UI** with full-text search (Google Keep style)
+- **Cross-platform** — iOS, Android, and Web from a single codebase
 
 **Supported formats:** Bullet List · Paragraph · Action Items · Meeting Notes · Custom Template
+
+---
+
+## How it works
+
+```
+You speak into your phone
+        │
+        ▼
+Supabase Edge Function
+  ├── OpenAI Whisper  →  transcription
+  └── OpenAI GPT      →  formatted note + title
+        │
+        ▼
+Saved to Supabase Postgres (with full-text search)
+```
+
+All OpenAI calls go through a Supabase Edge Function — your API key is never exposed to the client.
 
 ---
 
@@ -25,91 +45,36 @@ VoiceKeeper is a voice-first note-taking app — think Google Keep, but voice is
 |---|---|
 | Frontend | React Native (Expo) — iOS, Android, Web |
 | Speech-to-text | OpenAI Whisper API |
-| Auto-formatting | OpenAI gpt-5-nano |
+| Auto-formatting | OpenAI GPT |
 | Backend | Supabase (Auth + Postgres + Storage + Edge Functions) |
 | Deployment | Vercel (web) |
 
-All OpenAI API calls are proxied through Supabase Edge Functions — no API keys exposed on the client.
-
 ---
 
-## Project structure
+## Self-hosting / Development setup
 
-```
-voicekeeper/
-├── app/                          # Expo Router screens
-│   ├── _layout.tsx               # Root layout (auth guard, providers)
-│   ├── index.tsx                 # Home screen (note grid)
-│   ├── login.tsx                 # Login / signup screen
-│   ├── record.tsx                # Recording screen (modal)
-│   ├── preview.tsx               # Note preview after processing
-│   ├── settings.tsx              # Settings screen
-│   └── note/
-│       └── [id].tsx              # Note detail / edit screen
-├── components/                   # Reusable UI components
-│   ├── AudioWaveform.tsx         # Waveform visualization
-│   ├── FormatBadge.tsx           # Format type badge
-│   ├── LoadingOverlay.tsx        # Processing overlay
-│   ├── NoteCard.tsx              # Note card for grid
-│   ├── NoteGrid.tsx              # Grid layout of cards
-│   ├── RecordButton.tsx          # FAB record button
-│   └── SearchBar.tsx             # Search input
-├── contexts/                     # React Context providers
-│   ├── AuthContext.tsx            # Authentication state
-│   ├── NotesContext.tsx           # Notes CRUD + search
-│   └── PreferencesContext.tsx     # User preferences
-├── services/                     # Business logic
-│   ├── supabase.ts               # Supabase client init
-│   ├── auth.ts                   # Auth operations
-│   ├── notes.ts                  # Notes CRUD
-│   ├── recording.ts              # Audio recording
-│   ├── processing.ts             # Edge Function client
-│   └── preferences.ts            # User preferences
-├── types/                        # TypeScript types
-├── constants/                    # Colors, format options
-├── utils/
-│   ├── alert.ts                  # Cross-platform Alert (web-compatible)
-│   └── titleGenerator.ts         # Date formatting, text helpers
-├── supabase/
-│   ├── migrations/
-│   │   ├── 001_initial_schema.sql
-│   │   ├── 002_fix_new_user_trigger.sql
-│   │   ├── 003_add_custom_format.sql
-│   │   ├── 004_fix_custom_format_constraint.sql
-│   │   └── 005_add_custom_instructions.sql
-│   └── functions/
-│       └── process-recording/
-│           └── index.ts          # Edge Function (Whisper + GPT)
-├── docs/                         # Planning specs
-├── vercel.json                   # Vercel deployment config
-├── app.json                      # Expo config
-└── package.json
-```
-
----
-
-## Getting Started
+VoiceKeeper is open source under the AGPL-3.0 license. You can run your own instance — you just need to bring your own API keys (BYOK).
 
 ### Prerequisites
 
 - Node.js 18+
 - A [Supabase](https://supabase.com) account (free tier works)
 - An [OpenAI](https://platform.openai.com) API key
-- (Optional) [Vercel](https://vercel.com) account for deployment
+- (Optional) [Vercel](https://vercel.com) account for web deployment
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/End2EndAI/voicekeeper
+git clone https://github.com/End2EndAI/voicekeeper.git
 cd voicekeeper
 npm install
 ```
 
 ### 2. Set up Supabase
 
-1. Create a new project at [supabase.com](https://supabase.com/dashboard)
-2. Go to **Authentication > Providers** and make sure **Email** is enabled (disable "Confirm email" for faster testing if desired)
-3. Note your **Project URL** and **anon key** from **Settings > API** — you'll need them in step 4
+1. Create a new project at [supabase.com/dashboard](https://supabase.com/dashboard)
+2. Go to **Authentication > Providers** and enable **Email** (disable "Confirm email" for faster testing)
+3. Note your **Project URL** and **anon key** from **Settings > API**
 
 ### 3. Configure environment variables
 
@@ -117,22 +82,20 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `.env` with your Supabase credentials:
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
-Also create `supabase/.env.local` for the CLI:
+Also create `supabase/.env.local` for local Edge Function development:
 
 ```env
 OPENAI_API_KEY=sk-your-openai-key
 ```
 
-### 4. Link Supabase CLI and push the database
-
-Your project ref is the ID in your Supabase project URL (e.g. `pxaqfnczdfikxpjzlcfs`).
+### 4. Set up the database and Edge Function
 
 ```bash
 # Install Supabase CLI if needed
@@ -143,10 +106,10 @@ brew install supabase/tap/supabase   # macOS
 supabase login
 supabase link --project-ref YOUR_PROJECT_REF
 
-# Push all migrations (creates tables, RLS policies, triggers, storage bucket)
+# Push all migrations (tables, RLS policies, triggers, storage bucket)
 supabase db push
 
-# Set your OpenAI API key as a secret on the edge function
+# Set your OpenAI API key as a Supabase secret
 supabase secrets set OPENAI_API_KEY=sk-your-openai-key
 
 # Deploy the Edge Function
@@ -166,136 +129,88 @@ npx expo start --ios
 npx expo start --android
 ```
 
-> **Note:** The `.env` file is loaded automatically by Expo. Do not rename it to `.env.local` — Expo only reads `.env` and `.env.local` but the Expo public variable prefix (`EXPO_PUBLIC_`) is required for client-side access.
+> **Note:** Expo automatically loads the `.env` file. The `EXPO_PUBLIC_` prefix is required for client-side access.
 
 ---
 
-## Deploy to Vercel
-
-VoiceKeeper is ready to deploy as a static web app on Vercel.
-
-### Quick deploy
+## Deploy to Vercel (web)
 
 1. Push your repo to GitHub
-2. Go to [vercel.com/new](https://vercel.com/new) and import the repository
-3. Vercel will auto-detect the `vercel.json` configuration
-4. Add environment variables in the Vercel dashboard:
+2. Import the repository at [vercel.com/new](https://vercel.com/new)
+3. Add environment variables in the Vercel dashboard:
+   - `EXPO_PUBLIC_SUPABASE_URL`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+4. Deploy — Vercel auto-detects the `vercel.json` config
 
-| Variable | Value |
-|---|---|
-| `EXPO_PUBLIC_SUPABASE_URL` | `https://your-project-id.supabase.co` |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
-
-5. Deploy!
-
-### Manual deploy
-
-```bash
-# Build for web
-npx expo export --platform web
-
-# The output is in the dist/ folder
-# Deploy with Vercel CLI:
-npx vercel --prod
-```
-
-### Vercel settings
-
-The included `vercel.json` configures:
-- **Build command:** `npx expo export --platform web`
-- **Output directory:** `dist`
-- **Rewrites:** all routes fall back to `index.html` for client-side routing
+The included `vercel.json` configures the build command (`npx expo export --platform web`), output directory (`dist`), and SPA routing.
 
 ---
 
-## Supabase setup checklist
+## Project structure
 
-| Step | Command |
-|---|---|
-| Create Supabase project | [supabase.com/dashboard](https://supabase.com/dashboard) |
-| Link CLI to project | `supabase link --project-ref YOUR_PROJECT_REF` |
-| Push migrations to remote DB | `supabase db push` |
-| Set OpenAI API key secret | `supabase secrets set OPENAI_API_KEY=sk-...` |
-| Deploy Edge Function | `supabase functions deploy process-recording` |
-| Copy env vars to `.env` | See step 3 above |
-
-### Database tables
-
-**notes**: stores all voice notes with title, formatted text, raw transcription, format type, and optional audio URL. RLS ensures users can only access their own notes.
-
-**user_preferences**: stores per-user preferences: default format, custom template example, and custom instructions. Auto-created on signup via the `handle_new_user` trigger.
-
-### Edge Function: process-recording
-
-#### Why an Edge Function instead of calling OpenAI directly from the app?
-
-Calling OpenAI directly from a mobile or web app would require shipping the API key inside the client bundle — where it can be extracted by anyone with access to the app. The Edge Function acts as a secure server-side proxy:
-
-- The `OPENAI_API_KEY` is stored as a Supabase secret, never exposed to the client
-- The function validates the user's Supabase JWT before forwarding the request to OpenAI, so only authenticated users can trigger API calls
-- It centralizes all AI logic (transcription + formatting) in one place, making it easy to iterate on prompts, swap models, or add rate limiting without a new app release
-
-The app sends audio to the Edge Function → the function calls Whisper for transcription, then GPT for formatting → the result is returned to the app and saved to Postgres.
-
-#### Input
-
-Accepts a POST with `multipart/form-data` containing:
-
-| Field | Required | Description |
-|---|---|---|
-| `audio` | ✅ | Audio file to transcribe |
-| `format_type` | ✅ | One of `bullet_list`, `paragraph`, `action_items`, `meeting_notes`, `custom` |
-| `custom_example` | — | Example note for `custom` format (mirrors structure) |
-| `custom_instructions` | — | Free-text instructions appended to every prompt (tone, language, etc.) |
-
-Returns:
-
-```json
-{
-  "transcription": "Raw text from Whisper...",
-  "formatted_text": "Formatted output from GPT...",
-  "title": "Auto-generated title"
-}
+```
+voicekeeper/
+├── app/                          # Expo Router screens
+│   ├── _layout.tsx               # Root layout (auth guard, providers)
+│   ├── index.tsx                 # Home (note grid + search)
+│   ├── login.tsx                 # Login / signup
+│   ├── record.tsx                # Recording (modal)
+│   ├── preview.tsx               # Note preview after processing
+│   ├── settings.tsx              # User preferences
+│   └── note/[id].tsx             # Note detail / edit
+├── components/                   # Reusable UI components
+├── contexts/                     # React Context (Auth, Notes, Preferences)
+├── services/                     # Business logic (Supabase, recording, processing)
+├── types/                        # TypeScript type definitions
+├── constants/                    # Colors, format options
+├── utils/                        # Helpers (alerts, title generation)
+├── supabase/
+│   ├── migrations/               # SQL migrations (5 files)
+│   └── functions/
+│       └── process-recording/    # Edge Function (Whisper + GPT)
+├── .env.example                  # Environment template
+├── app.json                      # Expo config
+├── vercel.json                   # Vercel deployment config
+└── package.json
 ```
 
 ---
 
-## Architecture
+## Database schema
 
-```
-React Native (Expo)
-  │
-  ├── Auth (Supabase Auth)
-  ├── Home grid / Search
-  ├── Recording UI (expo-av)
-  └── Note viewer / editor
-        │
-        ▼
-Supabase Edge Function: process-recording
-  ├── OpenAI Whisper API  →  transcription
-  └── OpenAI gpt-5-nano  →  formatted note + title
-        │
-        ▼
-Supabase Postgres  →  notes table (RLS per user)
-Supabase Storage   →  recordings bucket (private)
-```
+**`notes`** — voice notes with title, formatted text, raw transcription, format type, and optional audio URL. Row-Level Security ensures users can only access their own notes.
+
+**`user_preferences`** — per-user settings: default format, custom template example, and custom instructions. Auto-created on signup via a database trigger.
+
+**`recordings` bucket** — private Supabase Storage bucket for audio files, with per-user RLS.
 
 ---
 
-## Implementation status
+## Edge Function: `process-recording`
 
-| Phase | Status |
-|---|---|
-| Product Brief | ✅ Done |
-| PRD | ✅ Done |
-| Architecture | ✅ Done |
-| Epics & Stories | ✅ Done (9 epics, 33 stories) |
-| Sprint Plan | ✅ Done (4 sprints) |
-| Implementation | ✅ Done |
-| Vercel Deployment Config | ✅ Done |
+The Edge Function acts as a secure proxy between the app and OpenAI:
+
+1. Validates the user's Supabase JWT
+2. Sends audio to OpenAI Whisper for transcription
+3. Sends transcription to GPT for formatting (with the user's chosen format + custom instructions)
+4. Returns `{ transcription, formatted_text, title }` to the app
+
+This design keeps API keys server-side and centralizes all AI logic for easy iteration.
+
+---
+
+## About
+
+VoiceKeeper is developed by [End2EndAI](https://github.com/End2EndAI). The official mobile apps are available on iOS and Android with a free tier (one note per day) — if you'd like to support the project, consider using the official app!
+
+Developers are welcome to self-host using their own API keys under the AGPL-3.0 license. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get involved.
 
 ---
 
 ## License
 
-Private repository — all rights reserved.
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+
+You are free to use, modify, and distribute this software under the terms of the AGPL-3.0. If you deploy a modified version as a network service, you must make your source code available to users of that service.
+
+See [LICENSE](LICENSE) for the full text.
