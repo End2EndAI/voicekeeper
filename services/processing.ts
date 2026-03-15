@@ -13,14 +13,17 @@ export const processRecording = async (
   } = await supabase.auth.getSession();
   if (!session) throw new Error('Not authenticated');
 
-  // Read audio file as blob
-  const response = await fetch(audioUri);
-  const blob = await response.blob();
-
   // Build form data
-  const audioFilename = Platform.OS === 'web' ? 'recording.webm' : 'recording.m4a';
   const formData = new FormData();
-  formData.append('audio', blob as any, audioFilename);
+  if (Platform.OS === 'web') {
+    // Web: fetch the blob URL and append as blob
+    const response = await fetch(audioUri);
+    const blob = await response.blob();
+    formData.append('audio', blob as any, 'recording.webm');
+  } else {
+    // React Native (iOS/Android): use native file attachment — works with expo-audio file URIs
+    formData.append('audio', { uri: audioUri, type: 'audio/m4a', name: 'recording.m4a' } as any);
+  }
   formData.append('format_type', formatType);
 
   // Pass custom example when format is custom
