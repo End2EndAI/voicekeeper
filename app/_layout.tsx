@@ -6,6 +6,8 @@ import { PreferencesProvider } from '../contexts/PreferencesContext';
 import { NotesProvider } from '../contexts/NotesContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '../constants/colors';
+import * as Linking from 'expo-linking';
+import { supabase } from '../services/supabase';
 
 function useProtectedRoute() {
   const { session, loading } = useAuth();
@@ -82,7 +84,37 @@ function RootLayoutNav() {
   );
 }
 
+function parseTokensFromUrl(url: string): { access_token?: string; refresh_token?: string } {
+  const fragment = url.includes('#') ? url.split('#')[1] : url.split('?')[1] ?? '';
+  const params = new URLSearchParams(fragment);
+  return {
+    access_token: params.get('access_token') ?? undefined,
+    refresh_token: params.get('refresh_token') ?? undefined,
+  };
+}
+
+async function handleAuthUrl(url: string) {
+  const { access_token, refresh_token } = parseTokensFromUrl(url);
+  if (access_token && refresh_token) {
+    await supabase.auth.setSession({ access_token, refresh_token });
+  }
+}
+
 export default function RootLayout() {
+  useEffect(() => {
+    // Handle deep link that opened the app (cold start)
+    Linking.getInitialURL().then((url) => {
+      if (url) handleAuthUrl(url);
+    });
+
+    // Handle deep link while app is already open (warm start)
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleAuthUrl(url);
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   return (
     <AuthProvider>
       <PreferencesProvider>
