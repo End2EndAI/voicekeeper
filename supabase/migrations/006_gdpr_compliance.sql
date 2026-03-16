@@ -33,14 +33,20 @@ CREATE POLICY "Service role can insert audit log"
 -- ============================================================
 -- 2. Log account creation in audit log
 -- ============================================================
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-    INSERT INTO user_preferences (user_id) VALUES (NEW.id);
-    INSERT INTO audit_log (user_id, action) VALUES (NEW.id, 'account_created');
+    INSERT INTO public.user_preferences (user_id)
+    VALUES (NEW.id)
+    ON CONFLICT (user_id) DO NOTHING;
+    INSERT INTO public.audit_log (user_id, action) VALUES (NEW.id, 'account_created');
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- ============================================================
 -- 3. Data export function (GDPR Art. 20 - Right to portability)
