@@ -14,6 +14,10 @@
   Mobile apps coming soon to the App Store and Play Store
 </p>
 
+<p align="center">
+  <img src="./assets/screenshot-notes.png" width="260" alt="Notes screen" />
+</p>
+
 ---
 
 VoiceKeeper is a voice-first note-taking app. Tap to record, and your voice is instantly transcribed and auto-formatted into the structure you want — bullet lists, paragraphs, action items, meeting notes, or a fully custom template you define by example.
@@ -32,6 +36,10 @@ Built with React Native (Expo), Supabase, and OpenAI. Runs on iOS, Android, and 
 - **Cross-platform** — iOS, Android, and Web from a single codebase
 
 **Supported formats:** Bullet List · Paragraph · Action Items · Meeting Notes · Custom Template
+
+<p align="center">
+  <img src="./assets/screenshot-settings.png" width="260" alt="Settings screen" />
+</p>
 
 ---
 
