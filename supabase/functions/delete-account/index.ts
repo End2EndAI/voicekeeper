@@ -41,36 +41,32 @@ serve(async (req: Request) => {
       );
     }
 
-    // Admin client (to delete user and storage)
+    // Admin client (to delete user data)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. List and delete all audio files for this user
-    const { data: files } = await adminClient.storage
-      .from('recordings')
-      .list(user.id);
-
-    if (files && files.length > 0) {
-      const filePaths = files.map((f) => `${user.id}/${f.name}`);
-      await adminClient.storage.from('recordings').remove(filePaths);
+    // 1. Delete user notes (will cascade via FK, but explicit for audit)
+    const { error: notesError } = await adminClient.from('notes').delete().eq('user_id', user.id);
+    if (notesError) {
+      throw new Error(`Failed to delete notes: ${notesError.message}`);
     }
 
-    // 2. Delete user notes (will cascade via FK, but explicit for audit)
-    await adminClient.from('notes').delete().eq('user_id', user.id);
+    // 2. Delete user preferences
+    const { error: prefsError } = await adminClient.from('user_preferences').delete().eq('user_id', user.id);
+    if (prefsError) {
+      throw new Error(`Failed to delete preferences: ${prefsError.message}`);
+    }
 
-    // 3. Delete user preferences
-    await adminClient.from('user_preferences').delete().eq('user_id', user.id);
-
-    // 4. Log the deletion in audit_log
-    await adminClient.from('audit_log').insert({
+    // 3. Log the deletion in audit_log
+    const { error: auditError } = await adminClient.from('audit_log').insert({
       user_id: user.id,
       action: 'account_deleted',
-      metadata: {
-        email: user.email,
-        audio_files_deleted: files?.length || 0,
-      },
+      metadata: { email: user.email },
     });
+    if (auditError) {
+      console.error('Audit log error (non-fatal):', auditError.message);
+    }
 
-    // 5. Delete the auth user
+    // 4. Delete the auth user
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
     if (deleteError) {
       throw new Error(`Failed to delete user: ${deleteError.message}`);

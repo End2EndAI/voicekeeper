@@ -7,7 +7,6 @@ export interface Note {
   formatted_text: string;
   raw_transcription: string;
   format_type: FormatType;
-  audio_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,7 +31,6 @@ export interface CreateNoteInput {
   formatted_text: string;
   raw_transcription: string;
   format_type: FormatType;
-  audio_url?: string | null;
 }
 
 export interface UpdateNoteInput {
