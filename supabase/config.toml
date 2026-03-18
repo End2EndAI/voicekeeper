@@ -2,3 +2,6 @@ project_id = "pxaqfnczdfikxpjzlcfs"
 
 [functions.process-recording]
 verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = true

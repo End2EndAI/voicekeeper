@@ -45,23 +45,36 @@ serve(async (req: Request) => {
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // 1. List and delete all audio files for this user
-    const { data: files } = await adminClient.storage
+    const { data: files, error: listError } = await adminClient.storage
       .from('recordings')
       .list(user.id);
 
+    if (listError) {
+      console.error('Storage list error (non-fatal):', listError.message);
+    }
+
     if (files && files.length > 0) {
       const filePaths = files.map((f) => `${user.id}/${f.name}`);
-      await adminClient.storage.from('recordings').remove(filePaths);
+      const { error: removeError } = await adminClient.storage.from('recordings').remove(filePaths);
+      if (removeError) {
+        console.error('Storage remove error (non-fatal):', removeError.message);
+      }
     }
 
     // 2. Delete user notes (will cascade via FK, but explicit for audit)
-    await adminClient.from('notes').delete().eq('user_id', user.id);
+    const { error: notesError } = await adminClient.from('notes').delete().eq('user_id', user.id);
+    if (notesError) {
+      throw new Error(`Failed to delete notes: ${notesError.message}`);
+    }
 
     // 3. Delete user preferences
-    await adminClient.from('user_preferences').delete().eq('user_id', user.id);
+    const { error: prefsError } = await adminClient.from('user_preferences').delete().eq('user_id', user.id);
+    if (prefsError) {
+      throw new Error(`Failed to delete preferences: ${prefsError.message}`);
+    }
 
     // 4. Log the deletion in audit_log
-    await adminClient.from('audit_log').insert({
+    const { error: auditError } = await adminClient.from('audit_log').insert({
       user_id: user.id,
       action: 'account_deleted',
       metadata: {
@@ -69,6 +82,9 @@ serve(async (req: Request) => {
         audio_files_deleted: files?.length || 0,
       },
     });
+    if (auditError) {
+      console.error('Audit log error (non-fatal):', auditError.message);
+    }
 
     // 5. Delete the auth user
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
