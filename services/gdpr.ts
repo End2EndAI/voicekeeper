@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
 /**
@@ -13,7 +14,6 @@ export const exportUserData = async (): Promise<object> => {
 /**
  * Delete user account and all associated data (GDPR Art. 17 - Right to erasure)
  * Calls the delete-account Edge Function which handles:
- * - Audio file cleanup from storage
  * - Notes deletion
  * - Preferences deletion
  * - Audit log entry
@@ -29,7 +29,19 @@ export const deleteAccount = async (): Promise<void> => {
     },
   });
 
-  if (error) throw new Error(`Account deletion failed: ${error.message}`);
+  if (error) {
+    // Extract the actual error message from the edge function response body
+    let errorMessage = error.message;
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = await error.context.json();
+        errorMessage = body.error || body.message || errorMessage;
+      } catch {
+        // ignore JSON parsing errors, keep generic message
+      }
+    }
+    throw new Error(`Account deletion failed: ${errorMessage}`);
+  }
   if (data && !data.success) throw new Error(data.error || 'Account deletion failed');
 
   // Sign out locally after server-side deletion
