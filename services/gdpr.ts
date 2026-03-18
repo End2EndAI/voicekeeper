@@ -14,7 +14,6 @@ export const exportUserData = async (): Promise<object> => {
 /**
  * Delete user account and all associated data (GDPR Art. 17 - Right to erasure)
  * Calls the delete-account Edge Function which handles:
- * - Audio file cleanup from storage
  * - Notes deletion
  * - Preferences deletion
  * - Audit log entry
