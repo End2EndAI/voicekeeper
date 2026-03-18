@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://voicekeeper.vercel.app/"><strong>Try the web demo →</strong></a>
   &nbsp;·&nbsp;
-  Mobile apps coming soon to the App Store and Play Store
+  Mobile app available on Android in the release and coming soon to the App Store on iOS.
 </p>
 
 ---
@@ -237,7 +237,7 @@ This design keeps API keys server-side and centralizes all AI logic for easy ite
 
 ## About
 
-VoiceKeeper is developed by [End2EndAI](https://github.com/End2EndAI). The web app is live and mobile apps are coming soon to the App Store and Play Store. The free tier allows 5 notes per day (limited due to OpenAI API costs). There is no paid subscription yet — one is coming for both the web app and mobile apps.
+VoiceKeeper is developed by [End2EndAI](https://github.com/End2EndAI). The web app is live and mobile apps are coming soon to the App Store and Play Store. The free tier allows 5 notes per day (limited due to OpenAI API costs). There is no paid subscription yet — one is coming soon on Android and iOS apps.
 
 Developers are welcome to self-host using their own API keys under the AGPL-3.0 license. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get involved.
 
