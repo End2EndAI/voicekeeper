@@ -125,6 +125,67 @@ async function formatTranscription(
   return JSON.parse(result.choices[0].message.content);
 }
 
+async function suggestTags(
+  formattedText: string,
+  userTags: string[]
+): Promise<string[]> {
+  if (userTags.length === 0) return [];
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-5-nano',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Given this note content, select 0 to 3 relevant tags from the provided list. Only use tags from the list. If no tags are relevant, return an empty array.',
+        },
+        {
+          role: 'user',
+          content: `Available tags: ${userTags.join(', ')}\n\nNote content: ${formattedText}`,
+        },
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'tag_suggestions',
+          schema: {
+            type: 'object',
+            properties: {
+              tags: {
+                type: 'array',
+                items: { type: 'string' },
+                maxItems: 3,
+              },
+            },
+            required: ['tags'],
+          },
+        },
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    // Non-fatal: if tag suggestion fails, return empty array
+    console.error('Tag suggestion failed:', response.status, response.statusText);
+    return [];
+  }
+
+  try {
+    const result = await response.json();
+    const parsed: { tags: string[] } = JSON.parse(result.choices[0].message.content);
+    // Filter to only include tags that are actually in the user's list
+    return parsed.tags.filter((t) => userTags.includes(t));
+  } catch {
+    return [];
+  }
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -186,6 +247,8 @@ serve(async (req: Request) => {
     const formatType = formData.get('format_type') as string | null;
     const customExample = formData.get('custom_example') as string | null;
     const customInstructions = formData.get('custom_instructions') as string | null;
+    const autotaggingEnabledRaw = formData.get('autotagging_enabled') as string | null;
+    const userTagsRaw = formData.get('user_tags') as string | null;
 
     // Validate inputs
     if (!audioFile) {
@@ -211,6 +274,16 @@ serve(async (req: Request) => {
         }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
+    }
+
+    const autotaggingEnabled = autotaggingEnabledRaw === 'true';
+    let userTags: string[] = [];
+    if (userTagsRaw) {
+      try {
+        userTags = JSON.parse(userTagsRaw) as string[];
+      } catch {
+        userTags = [];
+      }
     }
 
     // Step 1: Transcribe audio with Whisper
@@ -241,6 +314,14 @@ serve(async (req: Request) => {
       title = words.slice(0, 5).join(' ');
     }
 
+    // Step 3: Suggest tags (if autotagging enabled and user has tags)
+    let suggestedTags: string[] = [];
+    if (autotaggingEnabled && userTags.length > 0) {
+      console.log('Starting tag suggestion...');
+      suggestedTags = await suggestTags(formattedText, userTags);
+      console.log(`Tag suggestion completed in ${Date.now() - startTime}ms`);
+    }
+
     const totalTime = Date.now() - startTime;
     console.log(`Total processing time: ${totalTime}ms`);
 
@@ -249,6 +330,7 @@ serve(async (req: Request) => {
         transcription,
         formatted_text: formattedText,
         title,
+        suggested_tags: suggestedTags,
       }),
       {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },

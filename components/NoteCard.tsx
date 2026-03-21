@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Note } from '../types';
-import { FormatBadge } from './FormatBadge';
+import { TagChip } from './TagChip';
 import { Colors } from '../constants/colors';
 import { formatDate, truncateText } from '../utils/titleGenerator';
+import { useTags } from '../contexts/TagsContext';
 
 interface NoteCardProps {
   note: Note;
@@ -11,6 +12,9 @@ interface NoteCardProps {
 }
 
 export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
+  const { noteTagsMap } = useTags();
+  const noteTags = (noteTagsMap[note.id] ?? []).slice(0, 3);
+
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -19,7 +23,11 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
       accessibilityLabel={`Note: ${note.title}`}
     >
       <View style={styles.header}>
-        <FormatBadge formatType={note.format_type} />
+        <View style={styles.tagsRow}>
+          {noteTags.map((tag) => (
+            <TagChip key={tag.id} tag={tag} size="small" />
+          ))}
+        </View>
         <Text style={styles.date}>{formatDate(note.created_at)}</Text>
       </View>
       <Text style={styles.title} numberOfLines={2}>
@@ -49,6 +57,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    gap: 8,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    flex: 1,
   },
   title: {
     fontSize: 17,
@@ -67,5 +82,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textTertiary,
     fontWeight: '500',
+    flexShrink: 0,
   },
 });

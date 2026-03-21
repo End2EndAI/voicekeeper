@@ -9,6 +9,8 @@ export interface Note {
   format_type: FormatType;
   created_at: string;
   updated_at: string;
+  archived_at?: string | null;
+  deleted_at?: string | null;
 }
 
 export interface UserPreferences {
@@ -17,13 +19,26 @@ export interface UserPreferences {
   default_format: FormatType;
   custom_example: string | null;
   custom_instructions: string | null;
+  autotagging_enabled: boolean;
   updated_at: string;
+  is_admin?: boolean;
+}
+
+export interface AdminUser {
+  user_id: string;
+  email: string;
+  created_at: string;
+  tier: 'free' | 'unlimited';
+  is_admin: boolean;
+  note_count_30d: number;
+  note_count_total: number;
 }
 
 export interface ProcessingResult {
   transcription: string;
   formatted_text: string;
   title: string;
+  suggested_tags?: string[];
 }
 
 export interface CreateNoteInput {
@@ -36,4 +51,12 @@ export interface CreateNoteInput {
 export interface UpdateNoteInput {
   title?: string;
   formatted_text?: string;
+}
+
+export interface Tag {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  created_at: string;
 }
