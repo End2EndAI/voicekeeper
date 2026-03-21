@@ -80,12 +80,11 @@ BEGIN
         WHERE n.user_id = u.id
           AND n.deleted_at IS NULL
       )
-    )
+    ) ORDER BY u.created_at DESC
   )
   INTO v_result
   FROM auth.users u
-  LEFT JOIN user_preferences p ON p.user_id = u.id
-  ORDER BY u.created_at DESC;
+  LEFT JOIN user_preferences p ON p.user_id = u.id;
 
   RETURN COALESCE(v_result, '[]'::jsonb);
 END;
