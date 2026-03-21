@@ -12,11 +12,22 @@ import { showAlert } from '../utils/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { processRecording } from '../services/processing';
 import { useNotes } from '../contexts/NotesContext';
+import { usePreferences } from '../contexts/PreferencesContext';
+import { useTags } from '../contexts/TagsContext';
 import { FormatBadge } from '../components/FormatBadge';
+import { TagChip } from '../components/TagChip';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { Colors } from '../constants/colors';
-import { FormatType, ProcessingResult } from '../types';
+import { FormatType, ProcessingResult, Tag } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const DEFAULT_TAGS_CONFIG: Array<{ name: string; color: string }> = [
+  { name: 'start-up', color: '#f59e0b' },
+  { name: 'travail', color: '#3b82f6' },
+  { name: 'investissement', color: '#10b981' },
+  { name: 'personnel', color: '#8b5cf6' },
+  { name: 'idées', color: '#ec4899' },
+];
 
 export default function PreviewScreen() {
   const router = useRouter();
@@ -27,6 +38,8 @@ export default function PreviewScreen() {
     customInstructions?: string;
   }>();
   const { createNote } = useNotes();
+  const { autotaggingEnabled } = usePreferences();
+  const { tags, createTag, addTagToNote, fetchTags } = useTags();
 
   const audioUri = params.audioUri || '';
   const formatType = (params.formatType || 'bullet_list') as FormatType;
@@ -45,9 +58,31 @@ export default function PreviewScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Tag state for this preview
+  const [selectedTagNames, setSelectedTagNames] = useState<string[]>([]);
+
   useEffect(() => {
     processAudio();
   }, []);
+
+  const ensureDefaultTags = async (): Promise<Tag[]> => {
+    // If user has no tags, create default ones
+    if (tags.length === 0) {
+      const created: Tag[] = [];
+      for (const { name, color } of DEFAULT_TAGS_CONFIG) {
+        try {
+          const tag = await createTag(name, color);
+          created.push(tag);
+        } catch {
+          // Tag may already exist, ignore
+        }
+      }
+      // Refresh tag list
+      await fetchTags();
+      return created;
+    }
+    return tags;
+  };
 
   const processAudio = async () => {
     try {
@@ -55,16 +90,35 @@ export default function PreviewScreen() {
       setError(null);
       setProcessingMessage('Transcribing your recording...');
 
+      let currentTags = tags;
+      let tagNamesToSend: string[] = [];
+
+      if (autotaggingEnabled) {
+        setProcessingMessage('Preparing tags...');
+        if (tags.length === 0) {
+          currentTags = await ensureDefaultTags();
+        }
+        tagNamesToSend = currentTags.map((t) => t.name);
+      }
+
+      setProcessingMessage('Processing your note...');
+
       const processingResult = await processRecording(
         audioUri,
         formatType,
         customExample || undefined,
-        customInstructions || undefined
+        customInstructions || undefined,
+        autotaggingEnabled,
+        tagNamesToSend
       );
 
       setResult(processingResult);
       setEditableTitle(processingResult.title);
       setEditableText(processingResult.formatted_text);
+
+      if (processingResult.suggested_tags && processingResult.suggested_tags.length > 0) {
+        setSelectedTagNames(processingResult.suggested_tags);
+      }
     } catch (err: any) {
       const msg = err.message || 'Failed to process recording';
       if (msg.includes('daily limit') || msg.includes('daily_limit_reached')) {
@@ -76,17 +130,44 @@ export default function PreviewScreen() {
     }
   };
 
+  const handleRemoveSuggestedTag = (tagName: string) => {
+    setSelectedTagNames((prev) => prev.filter((n) => n !== tagName));
+  };
+
+  const handleAddTag = (tagName: string) => {
+    if (!selectedTagNames.includes(tagName)) {
+      setSelectedTagNames((prev) => [...prev, tagName]);
+    }
+  };
+
   const handleSave = async () => {
     if (!result) return;
 
     setSaving(true);
     try {
-      await createNote({
+      const note = await createNote({
         title: editableTitle,
         formatted_text: editableText,
         raw_transcription: result.transcription,
         format_type: formatType,
       });
+
+      // Save selected tags to the note
+      if (selectedTagNames.length > 0 && note) {
+        const tagMap = new Map(tags.map((t) => [t.name, t.id]));
+        for (const tagName of selectedTagNames) {
+          const tagId = tagMap.get(tagName);
+          if (tagId) {
+            try {
+              await addTagToNote(note.id, tagId);
+            } catch {
+              // Non-fatal: log and continue
+              console.error(`Failed to add tag "${tagName}" to note`);
+            }
+          }
+        }
+      }
+
       router.replace('/');
     } catch (err: any) {
       showAlert('Save Failed', err.message || 'Could not save the note.');
@@ -156,6 +237,9 @@ export default function PreviewScreen() {
     );
   }
 
+  // Tags available to add (not already selected)
+  const availableTagsToAdd = tags.filter((t) => !selectedTagNames.includes(t.name));
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
@@ -218,6 +302,59 @@ export default function PreviewScreen() {
             <Markdown style={markdownStyles}>{editableText}</Markdown>
           )}
         </View>
+
+        {/* Suggested / selected tags section */}
+        {autotaggingEnabled && (
+          <View style={styles.tagsSection}>
+            <Text style={styles.tagsSectionLabel}>Tags</Text>
+
+            {selectedTagNames.length > 0 && (
+              <View style={styles.selectedTagsRow}>
+                {selectedTagNames.map((name) => {
+                  const tag = tags.find((t) => t.name === name);
+                  if (!tag) return null;
+                  return (
+                    <View key={name} style={styles.tagChipWrapper}>
+                      <TagChip tag={tag} />
+                      <Pressable
+                        onPress={() => handleRemoveSuggestedTag(name)}
+                        style={({ pressed }) => [
+                          styles.removeTagButton,
+                          pressed && { opacity: 0.6 },
+                        ]}
+                        accessibilityLabel={`Remove tag ${name}`}
+                      >
+                        <Text style={styles.removeTagText}>✕</Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {availableTagsToAdd.length > 0 && (
+              <View style={styles.addTagsRow}>
+                <Text style={styles.addTagsLabel}>Add:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.addTagsScroll}>
+                  {availableTagsToAdd.map((tag) => (
+                    <Pressable
+                      key={tag.id}
+                      onPress={() => handleAddTag(tag.name)}
+                      style={({ pressed }) => [
+                        styles.addTagChip,
+                        pressed && { opacity: 0.6 },
+                      ]}
+                      accessibilityLabel={`Add tag ${tag.name}`}
+                    >
+                      <View style={[styles.addTagDot, { backgroundColor: tag.color }]} />
+                      <Text style={styles.addTagName}>{tag.name}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        )}
 
         {result?.transcription && (
           <View style={styles.rawSection}>
@@ -336,6 +473,79 @@ const styles = StyleSheet.create({
     padding: 16,
     minHeight: 200,
     backgroundColor: Colors.surface,
+  },
+  tagsSection: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  tagsSectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  selectedTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  tagChipWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  removeTagButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.surfaceHover,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeTagText: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    fontWeight: '700',
+  },
+  addTagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addTagsLabel: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+    fontWeight: '500',
+  },
+  addTagsScroll: {
+    flex: 1,
+  },
+  addTagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceHover,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginRight: 6,
+    gap: 5,
+  },
+  addTagDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  addTagName: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
   rawSection: {
     backgroundColor: Colors.surfaceHover,

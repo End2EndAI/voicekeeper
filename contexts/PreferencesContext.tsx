@@ -15,6 +15,7 @@ interface PreferencesState {
   defaultFormat: FormatType;
   customExample: string;
   customInstructions: string;
+  autotaggingEnabled: boolean;
   loading: boolean;
 }
 
@@ -22,6 +23,7 @@ interface PreferencesContextType extends PreferencesState {
   setDefaultFormat: (format: FormatType) => Promise<void>;
   setCustomExample: (example: string) => Promise<void>;
   setCustomInstructions: (instructions: string) => Promise<void>;
+  setAutotaggingEnabled: (enabled: boolean) => Promise<void>;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(
@@ -36,6 +38,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     defaultFormat: DEFAULT_FORMAT,
     customExample: '',
     customInstructions: '',
+    autotaggingEnabled: false,
     loading: true,
   });
 
@@ -43,7 +46,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     if (session) {
       loadPreferences();
     } else {
-      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', loading: false });
+      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', autotaggingEnabled: false, loading: false });
     }
   }, [session]);
 
@@ -54,6 +57,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
         defaultFormat: prefs?.default_format ?? DEFAULT_FORMAT,
         customExample: prefs?.custom_example ?? '',
         customInstructions: prefs?.custom_instructions ?? '',
+        autotaggingEnabled: prefs?.autotagging_enabled ?? false,
         loading: false,
       });
     } catch (error) {
@@ -95,6 +99,17 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [state.customInstructions]);
 
+  const setAutotaggingEnabled = useCallback(async (enabled: boolean) => {
+    const previous = state.autotaggingEnabled;
+    setState((prev) => ({ ...prev, autotaggingEnabled: enabled }));
+    try {
+      await preferencesService.setAutotaggingEnabled(enabled);
+    } catch (error) {
+      setState((prev) => ({ ...prev, autotaggingEnabled: previous }));
+      throw error;
+    }
+  }, [state.autotaggingEnabled]);
+
   return (
     <PreferencesContext.Provider
       value={{
@@ -102,6 +117,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
         setDefaultFormat,
         setCustomExample,
         setCustomInstructions,
+        setAutotaggingEnabled,
       }}
     >
       {children}
