@@ -1,7 +1,14 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Alert,
+  Platform,
+  Modal,
+} from 'react-native';
 import { Colors } from '../constants/colors';
-import { showConfirm } from '../utils/alert';
 import { AdminUser } from '../types';
 
 interface MemberRowProps {
@@ -11,6 +18,40 @@ interface MemberRowProps {
     tier: 'free' | 'unlimited',
     isAdmin: boolean
   ) => void;
+}
+
+type RoleOption = {
+  label: string;
+  description: string;
+  tier: 'free' | 'unlimited';
+  isAdmin: boolean;
+  current: boolean;
+};
+
+function getRoleOptions(user: AdminUser): RoleOption[] {
+  return [
+    {
+      label: 'Free',
+      description: '5 notes/day',
+      tier: 'free',
+      isAdmin: false,
+      current: !user.is_admin && user.tier === 'free',
+    },
+    {
+      label: 'Unlimited',
+      description: 'Unlimited notes, no admin access',
+      tier: 'unlimited',
+      isAdmin: false,
+      current: !user.is_admin && user.tier === 'unlimited',
+    },
+    {
+      label: 'Admin',
+      description: 'Unlimited notes + admin dashboard',
+      tier: 'unlimited',
+      isAdmin: true,
+      current: user.is_admin,
+    },
+  ];
 }
 
 function RoleBadge({ tier, isAdmin }: { tier: 'free' | 'unlimited'; isAdmin: boolean }) {
@@ -55,34 +96,78 @@ function truncateEmail(email: string, maxLength = 28): string {
   return local.slice(0, Math.max(allowedLocal, 3)) + '…' + domain;
 }
 
-export default function MemberRow({ user, onChangeRole }: MemberRowProps) {
-  const handleManage = () => {
-    const options: { label: string; tier: 'free' | 'unlimited'; isAdmin: boolean }[] = [
-      { label: 'Set Free', tier: 'free', isAdmin: false },
-      { label: 'Set Unlimited', tier: 'unlimited', isAdmin: false },
-      { label: 'Set Admin', tier: 'unlimited', isAdmin: true },
-    ];
+function WebRolePicker({
+  user,
+  visible,
+  onClose,
+  onSelect,
+}: {
+  user: AdminUser;
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (tier: 'free' | 'unlimited', isAdmin: boolean) => void;
+}) {
+  const options = getRoleOptions(user);
+  return (
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <View style={styles.sheet}>
+          <Text style={styles.sheetTitle}>Manage Role</Text>
+          <Text style={styles.sheetEmail}>{user.email}</Text>
+          {options.map((opt) => (
+            <Pressable
+              key={opt.label}
+              style={({ pressed }) => [
+                styles.sheetOption,
+                opt.current && styles.sheetOptionCurrent,
+                pressed && !opt.current && { opacity: 0.7 },
+              ]}
+              onPress={() => {
+                if (!opt.current) onSelect(opt.tier, opt.isAdmin);
+                onClose();
+              }}
+            >
+              <Text style={[styles.sheetOptionLabel, opt.current && styles.sheetOptionLabelCurrent]}>
+                {opt.label}{opt.current ? '  ✓' : ''}
+              </Text>
+              <Text style={styles.sheetOptionDesc}>{opt.description}</Text>
+            </Pressable>
+          ))}
+          <Pressable
+            style={({ pressed }) => [styles.sheetCancel, pressed && { opacity: 0.7 }]}
+            onPress={onClose}
+          >
+            <Text style={styles.sheetCancelText}>Cancel</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
 
-    if (user.is_admin) {
-      options.push({ label: 'Remove Admin', tier: user.tier, isAdmin: false });
+export default function MemberRow({ user, onChangeRole }: MemberRowProps) {
+  const [webPickerVisible, setWebPickerVisible] = useState(false);
+
+  const handleManage = () => {
+    const options = getRoleOptions(user);
+
+    if (Platform.OS === 'web') {
+      setWebPickerVisible(true);
+      return;
     }
 
-    // Build a readable summary of the actions for the confirm dialog
-    const optionLabels = options.map((o, i) => `${i + 1}. ${o.label}`).join('\n');
-
-    showConfirm(
+    Alert.alert(
       'Manage Role',
-      `User: ${user.email}\n\nAvailable actions:\n${optionLabels}\n\nSelect "OK" to cycle to the next role, or "Cancel" to dismiss.`,
-      () => {
-        // Cycle through roles: free → unlimited → admin → free
-        if (!user.is_admin && user.tier === 'free') {
-          onChangeRole(user.user_id, 'unlimited', false);
-        } else if (!user.is_admin && user.tier === 'unlimited') {
-          onChangeRole(user.user_id, 'unlimited', true);
-        } else {
-          onChangeRole(user.user_id, 'free', false);
-        }
-      }
+      user.email,
+      [
+        ...options.map((opt) => ({
+          text: opt.current ? `${opt.label} (current)` : opt.label,
+          onPress: opt.current
+            ? undefined
+            : () => onChangeRole(user.user_id, opt.tier, opt.isAdmin),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]
     );
   };
 
@@ -115,6 +200,15 @@ export default function MemberRow({ user, onChangeRole }: MemberRowProps) {
       >
         <Text style={styles.manageButtonText}>Manage</Text>
       </Pressable>
+
+      {Platform.OS === 'web' && (
+        <WebRolePicker
+          user={user}
+          visible={webPickerVisible}
+          onClose={() => setWebPickerVisible(false)}
+          onSelect={(tier, isAdmin) => onChangeRole(user.user_id, tier, isAdmin)}
+        />
+      )}
     </View>
   );
 }
@@ -196,5 +290,66 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 13,
     fontWeight: '600',
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+    gap: 8,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  sheetEmail: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+    marginBottom: 12,
+  },
+  sheetOption: {
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.borderLight,
+    gap: 2,
+  },
+  sheetOptionCurrent: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primarySubtle,
+  },
+  sheetOptionLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  sheetOptionLabelCurrent: {
+    color: Colors.primary,
+  },
+  sheetOptionDesc: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+  },
+  sheetCancel: {
+    marginTop: 4,
+    padding: 14,
+    alignItems: 'center',
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceHover,
+  },
+  sheetCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
 });
