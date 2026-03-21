@@ -96,7 +96,7 @@ npm install
 
 1. Create a new project at [supabase.com/dashboard](https://supabase.com/dashboard)
 2. Go to **Authentication > Providers** and enable **Email** (disable "Confirm email" for faster testing)
-3. Note your **Project URL** and **anon key** from **Settings > API**
+3. Note your **Project URL** and **Publishable key** from **Settings > API > Publishable and secret API keys**
 
 ### 3. Configure environment variables
 
@@ -108,8 +108,10 @@ Edit `.env` with your Supabase credentials:
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_your-key-here
 ```
+
+> **Note:** Use the **Publishable key** (`sb_publishable_...`) from **Settings > API > Publishable and secret API keys** — not the legacy JWT-based anon key.
 
 Also create `supabase/.env.local` for local Edge Function development:
 
@@ -135,8 +137,10 @@ supabase link --project-ref YOUR_PROJECT_REF
 # Push all migrations (tables, RLS policies, triggers, storage bucket)
 supabase db push
 
-# Set your OpenAI API key as a Supabase secret
+# Set your OpenAI API key and Supabase secret key as Supabase secrets
+# Use the Secret key (sb_secret_...) from Settings > API > Publishable and secret API keys
 supabase secrets set OPENAI_API_KEY=sk-your-openai-key
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=sb_secret_your-key-here
 
 # Deploy the Edge Functions
 supabase functions deploy process-recording
