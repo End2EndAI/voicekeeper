@@ -23,11 +23,13 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
       accessibilityLabel={`Note: ${note.title}`}
     >
       <View style={styles.header}>
-        <View style={styles.tagsRow}>
-          {noteTags.map((tag) => (
-            <TagChip key={tag.id} tag={tag} size="small" />
-          ))}
-        </View>
+        {noteTags.length > 0 && (
+          <View style={styles.tagsRow}>
+            {noteTags.map((tag) => (
+              <TagChip key={tag.id} tag={tag} size="small" />
+            ))}
+          </View>
+        )}
         <Text style={styles.date}>{formatDate(note.created_at)}</Text>
       </View>
       <Text style={styles.title} numberOfLines={2}>
@@ -54,7 +56,6 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
     gap: 8,
@@ -83,5 +84,6 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     fontWeight: '500',
     flexShrink: 0,
+    marginLeft: 'auto',
   },
 });
