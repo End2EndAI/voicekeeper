@@ -1,7 +1,7 @@
 project_id = "pxaqfnczdfikxpjzlcfs"
 
 [functions.process-recording]
-verify_jwt = false
+verify_jwt = true
 
 [functions.delete-account]
-verify_jwt = false
+verify_jwt = true
