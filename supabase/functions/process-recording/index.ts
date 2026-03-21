@@ -5,6 +5,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const ALLOWED_ORIGINS = [
   'https://voicekeeper.vercel.app',
   'https://voicekeeper.app',
+  'http://localhost:8081',
+  'http://localhost:8082',
+  'http://localhost:8083',
+  'http://localhost:19006',
 ];
 
 function getCorsHeaders(req: Request) {
