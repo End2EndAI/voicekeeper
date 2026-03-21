@@ -75,10 +75,10 @@ export const TagFilterBar: React.FC<TagFilterBarProps> = ({
 const styles = StyleSheet.create({
   scroll: {
     flexGrow: 0,
+    paddingVertical: 8,
   },
   container: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
     gap: 8,
     flexDirection: 'row',
     alignItems: 'center',
