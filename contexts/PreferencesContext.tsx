@@ -15,6 +15,7 @@ interface PreferencesState {
   defaultFormat: FormatType;
   customExample: string;
   customInstructions: string;
+  isAdmin: boolean;
   loading: boolean;
 }
 
@@ -36,6 +37,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     defaultFormat: DEFAULT_FORMAT,
     customExample: '',
     customInstructions: '',
+    isAdmin: false,
     loading: true,
   });
 
@@ -43,7 +45,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     if (session) {
       loadPreferences();
     } else {
-      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', loading: false });
+      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', isAdmin: false, loading: false });
     }
   }, [session]);
 
@@ -54,6 +56,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
         defaultFormat: prefs?.default_format ?? DEFAULT_FORMAT,
         customExample: prefs?.custom_example ?? '',
         customInstructions: prefs?.custom_instructions ?? '',
+        isAdmin: prefs?.is_admin ?? false,
         loading: false,
       });
     } catch (error) {

@@ -26,6 +26,7 @@ export default function SettingsScreen() {
     defaultFormat,
     customExample,
     customInstructions,
+    isAdmin,
     setDefaultFormat,
     setCustomExample,
     setCustomInstructions,
@@ -367,6 +368,26 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        {/* Admin */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Administration</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.adminButton,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => router.push('/admin')}
+              accessibilityLabel="Open Admin Dashboard"
+            >
+              <Text style={styles.adminButtonText}>Admin Dashboard</Text>
+              <Text style={styles.adminButtonDesc}>
+                Manage members, usage stats, and roles
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Legal */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Legal</Text>
@@ -622,6 +643,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   deleteAccountDesc: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  adminButton: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+  },
+  adminButtonText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  adminButtonDesc: {
     color: Colors.textTertiary,
     fontSize: 12,
     marginTop: 4,
