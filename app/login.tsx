@@ -19,6 +19,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
@@ -36,6 +37,7 @@ export default function LoginScreen() {
     try {
       if (isSignUp) {
         await signUp(email.trim(), password);
+        setConfirmationEmail(email.trim());
       } else {
         await signIn(email.trim(), password);
       }
@@ -45,6 +47,67 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  const handleBackToSignIn = () => {
+    setConfirmationEmail(null);
+    setIsSignUp(false);
+    setEmail('');
+    setPassword('');
+    setError(null);
+  };
+
+  if (confirmationEmail) {
+    return (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Branding */}
+          <View style={styles.brand}>
+            <View style={styles.logoContainer}>
+              <View style={styles.logoCircle}>
+                <View style={styles.micBody} />
+                <View style={styles.micBase} />
+              </View>
+            </View>
+            <Text style={styles.appName}>VoiceKeeper</Text>
+            <Text style={styles.tagline}>Speak it. Keep it. Organized.</Text>
+          </View>
+
+          {/* Confirmation card */}
+          <View style={styles.card}>
+            <View style={styles.confirmationIconContainer}>
+              <Text style={styles.confirmationIcon}>✉</Text>
+            </View>
+            <Text style={styles.confirmationTitle}>Check your inbox</Text>
+            <Text style={styles.confirmationSubtitle}>
+              A confirmation email has been sent to:
+            </Text>
+            <Text style={styles.confirmationEmail}>{confirmationEmail}</Text>
+            <Text style={styles.confirmationHint}>
+              Click the link in the email to activate your account, then come back to sign in.
+            </Text>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleBackToSignIn}
+              accessibilityRole="button"
+              accessibilityLabel="Back to sign in"
+            >
+              <Text style={styles.buttonText}>Back to Sign In</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -309,5 +372,40 @@ const styles = StyleSheet.create({
   switchTextBold: {
     color: Colors.primary,
     fontWeight: '600',
+  },
+  confirmationIconContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  confirmationIcon: {
+    fontSize: 48,
+  },
+  confirmationTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  confirmationSubtitle: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+  },
+  confirmationEmail: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.primary,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  confirmationHint: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 8,
   },
 });
