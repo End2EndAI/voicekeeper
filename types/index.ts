@@ -19,6 +19,7 @@ export interface UserPreferences {
   default_format: FormatType;
   custom_example: string | null;
   custom_instructions: string | null;
+  autotagging_enabled: boolean;
   updated_at: string;
 }
 
@@ -26,6 +27,7 @@ export interface ProcessingResult {
   transcription: string;
   formatted_text: string;
   title: string;
+  suggested_tags?: string[];
 }
 
 export interface CreateNoteInput {

@@ -8,6 +8,7 @@ import {
   ScrollView,
   Share,
   Platform,
+  Switch,
 } from 'react-native';
 import { showConfirm, showAlert } from '../utils/alert';
 import { useRouter } from 'expo-router';
@@ -39,9 +40,11 @@ export default function SettingsScreen() {
     defaultFormat,
     customExample,
     customInstructions,
+    autotaggingEnabled,
     setDefaultFormat,
     setCustomExample,
     setCustomInstructions,
+    setAutotaggingEnabled,
   } = usePreferences();
   const { tags, createTag, deleteTag } = useTags();
 
@@ -51,6 +54,7 @@ export default function SettingsScreen() {
   const [savingInstructions, setSavingInstructions] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [togglingAutotagging, setTogglingAutotagging] = useState(false);
 
   // Tag creation state
   const [newTagName, setNewTagName] = useState('');
@@ -113,6 +117,17 @@ export default function SettingsScreen() {
 
   const hasCustomInstructionsChanged = localCustomInstructions !== customInstructions;
   const hasCustomExampleChanged = localCustomExample !== customExample;
+
+  const handleToggleAutotagging = async (value: boolean) => {
+    setTogglingAutotagging(true);
+    try {
+      await setAutotaggingEnabled(value);
+    } catch {
+      showAlert('Error', 'Failed to update autotagging setting.');
+    } finally {
+      setTogglingAutotagging(false);
+    }
+  };
 
   const handleCreateTag = async () => {
     const trimmed = newTagName.trim();
@@ -385,6 +400,30 @@ export default function SettingsScreen() {
               <Text style={styles.navLinkChevron}>›</Text>
             </View>
           </Pressable>
+        </View>
+
+        {/* Autotagging */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Autotagging</Text>
+          <Text style={styles.sectionDesc}>
+            Automatically suggest tags for new notes using AI.
+          </Text>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleTextContainer}>
+              <Text style={styles.toggleLabel}>Auto-tag notes with AI</Text>
+              <Text style={styles.toggleDesc}>
+                Suggests relevant tags from your tag list when you create a note
+              </Text>
+            </View>
+            <Switch
+              value={autotaggingEnabled}
+              onValueChange={handleToggleAutotagging}
+              disabled={togglingAutotagging}
+              trackColor={{ false: Colors.borderLight, true: Colors.primary }}
+              thumbColor={'#FFFFFF'}
+              accessibilityLabel="Enable autotagging"
+            />
+          </View>
         </View>
 
         {/* Tags */}
@@ -813,6 +852,30 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: Colors.textTertiary,
     fontWeight: '300',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    gap: 12,
+  },
+  toggleTextContainer: {
+    flex: 1,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  toggleDesc: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+    lineHeight: 18,
   },
   tagsList: {
     gap: 8,

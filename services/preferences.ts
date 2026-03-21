@@ -77,3 +77,19 @@ export const updateCustomExample = async (
   if (error) throw error;
   return data;
 };
+
+export const setAutotaggingEnabled = async (enabled: boolean): Promise<void> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('user_preferences')
+    .upsert(
+      { user_id: user.id, autotagging_enabled: enabled },
+      { onConflict: 'user_id' }
+    );
+
+  if (error) throw error;
+};
