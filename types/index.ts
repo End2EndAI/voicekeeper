@@ -9,6 +9,8 @@ export interface Note {
   format_type: FormatType;
   created_at: string;
   updated_at: string;
+  archived_at?: string | null;
+  deleted_at?: string | null;
 }
 
 export interface UserPreferences {

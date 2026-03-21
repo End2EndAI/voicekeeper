@@ -302,6 +302,43 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        {/* Notes management */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notes</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.navLink,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={() => router.push('/archive')}
+          >
+            <View style={styles.navLinkContent}>
+              <Text style={styles.navLinkIcon}>🗂</Text>
+              <View style={styles.navLinkText}>
+                <Text style={styles.navLinkTitle}>Archive</Text>
+                <Text style={styles.navLinkDesc}>Notes you've archived</Text>
+              </View>
+              <Text style={styles.navLinkChevron}>›</Text>
+            </View>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.navLink,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={() => router.push('/trash')}
+          >
+            <View style={styles.navLinkContent}>
+              <Text style={styles.navLinkIcon}>🗑</Text>
+              <View style={styles.navLinkText}>
+                <Text style={styles.navLinkTitle}>Trash</Text>
+                <Text style={styles.navLinkDesc}>Recently deleted notes (kept 30 days)</Text>
+              </View>
+              <Text style={styles.navLinkChevron}>›</Text>
+            </View>
+          </Pressable>
+        </View>
+
         {/* Account */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
@@ -625,6 +662,42 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     fontSize: 12,
     marginTop: 4,
+  },
+  navLink: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Colors.shadow.sm,
+  },
+  navLinkContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  navLinkIcon: {
+    fontSize: 20,
+    marginRight: 14,
+  },
+  navLinkText: {
+    flex: 1,
+  },
+  navLinkTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  navLinkDesc: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+  },
+  navLinkChevron: {
+    fontSize: 20,
+    color: Colors.textTertiary,
+    fontWeight: '300',
   },
   legalLink: {
     paddingVertical: 14,

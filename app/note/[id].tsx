@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function NoteDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { notes, updateNote, deleteNote } = useNotes();
+  const { notes, updateNote, deleteNote, archiveNote } = useNotes();
 
   const note = useMemo(() => notes.find((n) => n.id === id), [notes, id]);
 
@@ -62,10 +62,25 @@ export default function NoteDetailScreen() {
     }
   };
 
+  const handleArchive = () => {
+    showConfirm(
+      'Archive Note',
+      'This note will be moved to your archive. You can restore it from Settings > Archive.',
+      async () => {
+        try {
+          await archiveNote(note.id);
+          router.replace('/');
+        } catch {
+          showAlert('Error', 'Failed to archive note.');
+        }
+      }
+    );
+  };
+
   const handleDelete = () => {
     showConfirm(
-      'Delete Note',
-      'Are you sure you want to delete this note? This action cannot be undone.',
+      'Move to Trash',
+      'This note will be moved to trash and permanently deleted after 30 days.',
       async () => {
         try {
           await deleteNote(note.id);
@@ -135,6 +150,15 @@ export default function NoteDetailScreen() {
                 ]}
               >
                 <Text style={styles.editActionText}>Edit</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleArchive}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <Text style={styles.archiveText}>Archive</Text>
               </Pressable>
               <Pressable
                 onPress={handleDelete}
@@ -276,6 +300,11 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 16,
     fontWeight: '700',
+  },
+  archiveText: {
+    color: Colors.warning,
+    fontSize: 16,
+    fontWeight: '500',
   },
   deleteText: {
     color: Colors.error,

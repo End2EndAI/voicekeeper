@@ -77,6 +77,14 @@ function RootLayoutNav() {
           name="settings"
           options={{ title: 'Settings', headerShown: false }}
         />
+        <Stack.Screen
+          name="archive"
+          options={{ title: 'Archive', headerShown: false }}
+        />
+        <Stack.Screen
+          name="trash"
+          options={{ title: 'Trash', headerShown: false }}
+        />
       </Stack>
     </>
   );
