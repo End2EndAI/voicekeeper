@@ -162,6 +162,35 @@ npx expo start --android
 
 ---
 
+## Build mobile apps (EAS)
+
+Requires an [Expo account](https://expo.dev) and the EAS CLI:
+
+```bash
+npm install -g eas-cli
+eas login
+```
+
+### Android APK (preview — direct install)
+
+```bash
+eas build --platform android --profile preview
+```
+
+Produces a downloadable `.apk` you can install directly on any Android device. No Play Store needed.
+
+### Production build (Play Store / App Store)
+
+```bash
+# Android (AAB for Play Store)
+eas build --platform android --profile production
+
+# iOS (for App Store)
+eas build --platform ios --profile production
+```
+
+---
+
 ## Deploy to Vercel (web)
 
 1. Push your repo to GitHub
