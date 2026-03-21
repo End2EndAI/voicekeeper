@@ -95,6 +95,7 @@ export default function HomeScreen() {
         loading={loading}
         onNotePress={handleNotePress}
         onRefresh={fetchNotes}
+        hasActiveFilter={selectedTagId !== null}
       />
 
       <RecordButton onPress={handleRecord} />
