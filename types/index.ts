@@ -21,6 +21,17 @@ export interface UserPreferences {
   custom_instructions: string | null;
   autotagging_enabled: boolean;
   updated_at: string;
+  is_admin?: boolean;
+}
+
+export interface AdminUser {
+  user_id: string;
+  email: string;
+  created_at: string;
+  tier: 'free' | 'unlimited';
+  is_admin: boolean;
+  note_count_30d: number;
+  note_count_total: number;
 }
 
 export interface ProcessingResult {

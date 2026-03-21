@@ -16,6 +16,7 @@ interface PreferencesState {
   customExample: string;
   customInstructions: string;
   autotaggingEnabled: boolean;
+  isAdmin: boolean;
   loading: boolean;
 }
 
@@ -39,6 +40,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     customExample: '',
     customInstructions: '',
     autotaggingEnabled: false,
+    isAdmin: false,
     loading: true,
   });
 
@@ -46,7 +48,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     if (session) {
       loadPreferences();
     } else {
-      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', autotaggingEnabled: false, loading: false });
+      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', autotaggingEnabled: false, isAdmin: false, loading: false });
     }
   }, [session]);
 
@@ -58,6 +60,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
         customExample: prefs?.custom_example ?? '',
         customInstructions: prefs?.custom_instructions ?? '',
         autotaggingEnabled: prefs?.autotagging_enabled ?? false,
+        isAdmin: prefs?.is_admin ?? false,
         loading: false,
       });
     } catch (error) {
