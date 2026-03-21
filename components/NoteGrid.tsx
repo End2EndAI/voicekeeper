@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Note } from '../types';
 import { NoteCard } from './NoteCard';
 import { Colors } from '../constants/colors';
@@ -16,6 +17,7 @@ interface NoteGridProps {
   loading: boolean;
   onNotePress: (note: Note) => void;
   onRefresh: () => void;
+  hasActiveFilter?: boolean;
 }
 
 export const NoteGrid: React.FC<NoteGridProps> = ({
@@ -23,7 +25,10 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
   loading,
   onNotePress,
   onRefresh,
+  hasActiveFilter = false,
 }) => {
+  const insets = useSafeAreaInsets();
+
   if (loading && notes.length === 0) {
     return (
       <View style={styles.centered}>
@@ -39,10 +44,21 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
           <View style={styles.emptyMicBody} />
           <View style={styles.emptyMicBase} />
         </View>
-        <Text style={styles.emptyTitle}>No notes yet</Text>
-        <Text style={styles.emptyText}>
-          Tap the record button below to{'\n'}create your first voice note
-        </Text>
+        {hasActiveFilter ? (
+          <>
+            <Text style={styles.emptyTitle}>No notes found</Text>
+            <Text style={styles.emptyText}>
+              No notes match the selected tag
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.emptyTitle}>No notes yet</Text>
+            <Text style={styles.emptyText}>
+              Tap the record button below to{'\n'}create your first voice note
+            </Text>
+          </>
+        )}
       </View>
     );
   }
@@ -54,7 +70,7 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
         <NoteCard note={item} onPress={onNotePress} />
       )}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={[styles.list, { paddingBottom: 120 + insets.bottom }]}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
@@ -70,7 +86,6 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
 const styles = StyleSheet.create({
   list: {
     padding: 20,
-    paddingBottom: 120,
   },
   centered: {
     flex: 1,
