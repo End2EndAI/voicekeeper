@@ -12,8 +12,10 @@ import { useAuth } from './AuthContext';
 
 interface TagsContextType {
   tags: Tag[];
+  noteTagsMap: Record<string, Tag[]>;
   loading: boolean;
   fetchTags: () => Promise<void>;
+  refreshNoteTagsMap: () => Promise<void>;
   createTag: (name: string, color: string) => Promise<Tag>;
   updateTag: (id: string, name: string, color: string) => Promise<Tag>;
   deleteTag: (id: string) => Promise<void>;
@@ -29,7 +31,17 @@ export const TagsProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const { session } = useAuth();
   const [tags, setTags] = useState<Tag[]>([]);
+  const [noteTagsMap, setNoteTagsMap] = useState<Record<string, Tag[]>>({});
   const [loading, setLoading] = useState(false);
+
+  const refreshNoteTagsMap = useCallback(async () => {
+    try {
+      const map = await tagsService.fetchNoteTagsMap();
+      setNoteTagsMap(map);
+    } catch (error) {
+      console.error('Failed to fetch note tags map:', error);
+    }
+  }, []);
 
   const fetchTags = useCallback(async () => {
     setLoading(true);
@@ -46,10 +58,12 @@ export const TagsProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     if (session) {
       fetchTags();
+      refreshNoteTagsMap();
     } else {
       setTags([]);
+      setNoteTagsMap({});
     }
-  }, [session, fetchTags]);
+  }, [session, fetchTags, refreshNoteTagsMap]);
 
   const createTag = useCallback(async (name: string, color: string): Promise<Tag> => {
     const tag = await tagsService.createTag(name, color);
@@ -71,18 +85,36 @@ export const TagsProvider: React.FC<{ children: ReactNode }> = ({
   const deleteTag = useCallback(async (id: string): Promise<void> => {
     await tagsService.deleteTag(id);
     setTags((prev) => prev.filter((t) => t.id !== id));
+    setNoteTagsMap((prev) => {
+      const next = { ...prev };
+      for (const noteId of Object.keys(next)) {
+        next[noteId] = next[noteId].filter((t) => t.id !== id);
+      }
+      return next;
+    });
   }, []);
 
   const addTagToNote = useCallback(
     async (noteId: string, tagId: string): Promise<void> => {
       await tagsService.addTagToNote(noteId, tagId);
+      const tag = tags.find((t) => t.id === tagId);
+      if (tag) {
+        setNoteTagsMap((prev) => ({
+          ...prev,
+          [noteId]: [...(prev[noteId] ?? []).filter((t) => t.id !== tagId), tag],
+        }));
+      }
     },
-    []
+    [tags]
   );
 
   const removeTagFromNote = useCallback(
     async (noteId: string, tagId: string): Promise<void> => {
       await tagsService.removeTagFromNote(noteId, tagId);
+      setNoteTagsMap((prev) => ({
+        ...prev,
+        [noteId]: (prev[noteId] ?? []).filter((t) => t.id !== tagId),
+      }));
     },
     []
   );
@@ -98,8 +130,10 @@ export const TagsProvider: React.FC<{ children: ReactNode }> = ({
     <TagsContext.Provider
       value={{
         tags,
+        noteTagsMap,
         loading,
         fetchTags,
+        refreshNoteTagsMap,
         createTag,
         updateTag,
         deleteTag,

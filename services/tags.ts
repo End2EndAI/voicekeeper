@@ -83,3 +83,18 @@ export const fetchNotesForTag = async (tagId: string): Promise<string[]> => {
   if (error) throw error;
   return (data || []).map((row: { note_id: string }) => row.note_id);
 };
+
+export const fetchNoteTagsMap = async (): Promise<Record<string, Tag[]>> => {
+  const { data, error } = await supabase
+    .from('note_tags')
+    .select('note_id, tags(id, name, color, user_id, created_at)');
+  if (error) throw error;
+  const map: Record<string, Tag[]> = {};
+  for (const row of data ?? []) {
+    const tag = (Array.isArray(row.tags) ? row.tags[0] : row.tags) as Tag | null;
+    if (!tag) continue;
+    if (!map[row.note_id]) map[row.note_id] = [];
+    map[row.note_id].push(tag);
+  }
+  return map;
+};

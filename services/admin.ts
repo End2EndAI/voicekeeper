@@ -4,11 +4,9 @@ import { AdminUser } from '../types';
 export const getAdminUsers = async (): Promise<AdminUser[]> => {
   const { data, error } = await supabase.rpc('admin_get_all_users');
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 
-  // The RPC returns a JSONB value directly
-  const result = data as AdminUser[] | null;
-  return result ?? [];
+  return (data ?? []) as AdminUser[];
 };
 
 export const setUserRole = async (
@@ -22,5 +20,5 @@ export const setUserRole = async (
     p_is_admin: isAdmin,
   });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 };
