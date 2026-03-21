@@ -13,11 +13,24 @@ import { showConfirm, showAlert } from '../utils/alert';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useTags } from '../contexts/TagsContext';
 import { FORMAT_OPTIONS } from '../constants/formats';
 import { Colors } from '../constants/colors';
 import { FormatType } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { exportUserData, deleteAccount } from '../services/gdpr';
+import { TagChip } from '../components/TagChip';
+
+const TAG_PALETTE = [
+  '#6366F1',
+  '#EC4899',
+  '#F59E0B',
+  '#10B981',
+  '#3B82F6',
+  '#EF4444',
+  '#8B5CF6',
+  '#14B8A6',
+];
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -30,6 +43,7 @@ export default function SettingsScreen() {
     setCustomExample,
     setCustomInstructions,
   } = usePreferences();
+  const { tags, createTag, deleteTag } = useTags();
 
   const [localCustomExample, setLocalCustomExample] = useState(customExample);
   const [savingExample, setSavingExample] = useState(false);
@@ -37,6 +51,11 @@ export default function SettingsScreen() {
   const [savingInstructions, setSavingInstructions] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Tag creation state
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState(TAG_PALETTE[0]);
+  const [creatingTag, setCreatingTag] = useState(false);
 
   useEffect(() => {
     setLocalCustomExample(customExample);
@@ -94,6 +113,35 @@ export default function SettingsScreen() {
 
   const hasCustomInstructionsChanged = localCustomInstructions !== customInstructions;
   const hasCustomExampleChanged = localCustomExample !== customExample;
+
+  const handleCreateTag = async () => {
+    const trimmed = newTagName.trim();
+    if (!trimmed) return;
+    setCreatingTag(true);
+    try {
+      await createTag(trimmed, newTagColor);
+      setNewTagName('');
+      setNewTagColor(TAG_PALETTE[0]);
+    } catch {
+      showAlert('Error', 'Failed to create tag. A tag with this name may already exist.');
+    } finally {
+      setCreatingTag(false);
+    }
+  };
+
+  const handleDeleteTag = (tagId: string, tagName: string) => {
+    showConfirm(
+      'Delete Tag',
+      `Delete "${tagName}"? It will be removed from all notes.`,
+      async () => {
+        try {
+          await deleteTag(tagId);
+        } catch {
+          showAlert('Error', 'Failed to delete tag.');
+        }
+      }
+    );
+  };
 
   const handleExportData = async () => {
     setExporting(true);
@@ -300,6 +348,73 @@ export default function SettingsScreen() {
               {savingExample ? 'Saving...' : 'Save Template'}
             </Text>
           </Pressable>
+        </View>
+
+        {/* Tags */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tags</Text>
+          <Text style={styles.sectionDesc}>
+            Create colored tags to organize your notes.
+          </Text>
+
+          {/* Existing tags */}
+          {tags.length > 0 && (
+            <View style={styles.tagsList}>
+              {tags.map((tag) => (
+                <View key={tag.id} style={styles.tagRow}>
+                  <TagChip tag={tag} />
+                  <Pressable
+                    onPress={() => handleDeleteTag(tag.id, tag.name)}
+                    style={({ pressed }) => [
+                      styles.deleteTagButton,
+                      pressed && { opacity: 0.6 },
+                    ]}
+                    accessibilityLabel={`Delete tag ${tag.name}`}
+                  >
+                    <Text style={styles.deleteTagText}>Delete</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Create new tag */}
+          <View style={styles.createTagForm}>
+            <TextInput
+              style={styles.tagNameInput}
+              value={newTagName}
+              onChangeText={setNewTagName}
+              placeholder="New tag name"
+              placeholderTextColor={Colors.textTertiary}
+              maxLength={30}
+            />
+            <View style={styles.tagPalette}>
+              {TAG_PALETTE.map((color) => (
+                <Pressable
+                  key={color}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: color },
+                    newTagColor === color && styles.colorSwatchSelected,
+                  ]}
+                  onPress={() => setNewTagColor(color)}
+                />
+              ))}
+            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.saveExampleButton,
+                (!newTagName.trim() || creatingTag) && styles.saveExampleButtonDisabled,
+                pressed && newTagName.trim() && !creatingTag && { opacity: 0.85 },
+              ]}
+              onPress={handleCreateTag}
+              disabled={!newTagName.trim() || creatingTag}
+            >
+              <Text style={styles.saveExampleButtonText}>
+                {creatingTag ? 'Creating...' : 'Create Tag'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Account */}
@@ -625,6 +740,58 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     fontSize: 12,
     marginTop: 4,
+  },
+  tagsList: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  deleteTagButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.errorLight,
+  },
+  deleteTagText: {
+    fontSize: 12,
+    color: Colors.error,
+    fontWeight: '600',
+  },
+  createTagForm: {
+    gap: 12,
+  },
+  tagNameInput: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+  },
+  tagPalette: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  colorSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  colorSwatchSelected: {
+    borderWidth: 3,
+    borderColor: Colors.text,
   },
   legalLink: {
     paddingVertical: 14,

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,15 +11,21 @@ import Markdown from 'react-native-markdown-display';
 import { showConfirm, showAlert } from '../../utils/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useNotes } from '../../contexts/NotesContext';
+import { useTags } from '../../contexts/TagsContext';
 import { FormatBadge } from '../../components/FormatBadge';
+import { TagChip } from '../../components/TagChip';
+import { TagPicker } from '../../components/TagPicker';
 import { Colors } from '../../constants/colors';
 import { formatDate } from '../../utils/titleGenerator';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Tag } from '../../types';
 
 export default function NoteDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { notes, updateNote, deleteNote } = useNotes();
+  const { tags, createTag, addTagToNote, removeTagFromNote, fetchTagsForNote } =
+    useTags();
 
   const note = useMemo(() => notes.find((n) => n.id === id), [notes, id]);
 
@@ -27,6 +33,15 @@ export default function NoteDetailScreen() {
   const [editTitle, setEditTitle] = useState(note?.title ?? '');
   const [editText, setEditText] = useState(note?.formatted_text ?? '');
   const [saving, setSaving] = useState(false);
+
+  const [noteTags, setNoteTags] = useState<Tag[]>([]);
+  const [tagPickerVisible, setTagPickerVisible] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetchTagsForNote(id).then(setNoteTags).catch(console.error);
+    }
+  }, [id, fetchTagsForNote]);
 
   if (!note) {
     return (
@@ -55,7 +70,7 @@ export default function NoteDetailScreen() {
         formatted_text: editText,
       });
       setIsEditing(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showAlert('Error', 'Failed to save changes.');
     } finally {
       setSaving(false);
@@ -82,6 +97,34 @@ export default function NoteDetailScreen() {
     setEditText(note.formatted_text);
     setIsEditing(false);
   };
+
+  const handleToggleTag = async (tagId: string) => {
+    const isAdded = noteTags.some((t) => t.id === tagId);
+    try {
+      if (isAdded) {
+        await removeTagFromNote(note.id, tagId);
+        setNoteTags((prev) => prev.filter((t) => t.id !== tagId));
+      } else {
+        await addTagToNote(note.id, tagId);
+        const tag = tags.find((t) => t.id === tagId);
+        if (tag) setNoteTags((prev) => [...prev, tag]);
+      }
+    } catch {
+      showAlert('Error', 'Failed to update tags.');
+    }
+  };
+
+  const handleCreateTag = async (name: string, color: string) => {
+    try {
+      const tag = await createTag(name, color);
+      await addTagToNote(note.id, tag.id);
+      setNoteTags((prev) => [...prev, tag]);
+    } catch {
+      showAlert('Error', 'Failed to create tag.');
+    }
+  };
+
+  const selectedTagIds = noteTags.map((t) => t.id);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -185,6 +228,37 @@ export default function NoteDetailScreen() {
           </>
         )}
 
+        {/* Tags section */}
+        <View style={styles.tagsSection}>
+          <View style={styles.tagsHeader}>
+            <Text style={styles.tagsLabel}>Tags</Text>
+            <Pressable
+              onPress={() => setTagPickerVisible(true)}
+              style={({ pressed }) => [
+                styles.editTagsButton,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={styles.editTagsText}>
+                {noteTags.length === 0 ? '+ Add' : 'Edit'}
+              </Text>
+            </Pressable>
+          </View>
+          {noteTags.length > 0 ? (
+            <View style={styles.tagsList}>
+              {noteTags.map((tag) => (
+                <TagChip
+                  key={tag.id}
+                  tag={tag}
+                  onRemove={() => handleToggleTag(tag.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.noTagsText}>No tags</Text>
+          )}
+        </View>
+
         {!isEditing && note.raw_transcription && (
           <View style={styles.rawSection}>
             <Text style={styles.rawLabel}>Raw Transcription</Text>
@@ -192,6 +266,15 @@ export default function NoteDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      <TagPicker
+        visible={tagPickerVisible}
+        onClose={() => setTagPickerVisible(false)}
+        allTags={tags}
+        selectedTagIds={selectedTagIds}
+        onToggle={handleToggleTag}
+        onCreateTag={handleCreateTag}
+      />
     </SafeAreaView>
   );
 }
@@ -328,6 +411,46 @@ const styles = StyleSheet.create({
     padding: 16,
     minHeight: 250,
     backgroundColor: Colors.surface,
+  },
+  tagsSection: {
+    marginTop: 28,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  tagsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  tagsLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  editTagsButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.primarySubtle,
+  },
+  editTagsText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  tagsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  noTagsText: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    fontStyle: 'italic',
   },
   rawSection: {
     backgroundColor: Colors.surfaceHover,
