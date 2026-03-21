@@ -70,7 +70,8 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
         <NoteCard note={item} onPress={onNotePress} />
       )}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={[styles.list, { paddingBottom: 120 + insets.bottom }]}
+      style={styles.flatList}
+      contentContainerStyle={[styles.listContent, { paddingBottom: 120 + insets.bottom }]}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
@@ -84,7 +85,10 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
 };
 
 const styles = StyleSheet.create({
-  list: {
+  flatList: {
+    flex: 1,
+  },
+  listContent: {
     padding: 20,
   },
   centered: {
