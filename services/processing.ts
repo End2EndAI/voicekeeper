@@ -6,7 +6,9 @@ export const processRecording = async (
   audioUri: string,
   formatType: FormatType,
   customExample?: string,
-  customInstructions?: string
+  customInstructions?: string,
+  autotaggingEnabled?: boolean,
+  userTagNames?: string[]
 ): Promise<ProcessingResult> => {
   const {
     data: { session },
@@ -34,6 +36,12 @@ export const processRecording = async (
   // Pass custom instructions (applies to all formats)
   if (customInstructions) {
     formData.append('custom_instructions', customInstructions);
+  }
+
+  // Pass autotagging parameters
+  if (autotaggingEnabled) {
+    formData.append('autotagging_enabled', 'true');
+    formData.append('user_tags', JSON.stringify(userTagNames ?? []));
   }
 
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;

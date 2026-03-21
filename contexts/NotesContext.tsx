@@ -23,6 +23,11 @@ interface NotesContextType extends NotesState {
   createNote: (input: CreateNoteInput) => Promise<Note>;
   updateNote: (id: string, updates: UpdateNoteInput) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
+  archiveNote: (id: string) => Promise<void>;
+  unarchiveNote: (id: string) => Promise<void>;
+  trashNote: (id: string) => Promise<void>;
+  restoreNote: (id: string) => Promise<void>;
+  deleteNotePermanently: (id: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
 }
 
@@ -80,6 +85,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
 
+  // Soft delete — envoie en corbeille
   const deleteNote = useCallback(async (id: string) => {
     // Optimistic update
     setState((prev) => ({
@@ -87,13 +93,61 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
       notes: prev.notes.filter((n) => n.id !== id),
     }));
     try {
-      await notesService.deleteNote(id);
+      await notesService.trashNote(id);
     } catch (error) {
       // Revert on error
       fetchNotes();
       throw error;
     }
   }, [fetchNotes]);
+
+  const archiveNote = useCallback(async (id: string) => {
+    // Optimistic update — retire de la liste active
+    setState((prev) => ({
+      ...prev,
+      notes: prev.notes.filter((n) => n.id !== id),
+    }));
+    try {
+      await notesService.archiveNote(id);
+    } catch (error) {
+      fetchNotes();
+      throw error;
+    }
+  }, [fetchNotes]);
+
+  const unarchiveNote = useCallback(async (id: string) => {
+    try {
+      await notesService.unarchiveNote(id);
+      // Rafraîchir la liste principale après désarchivage
+      fetchNotes();
+    } catch (error) {
+      throw error;
+    }
+  }, [fetchNotes]);
+
+  const trashNote = useCallback(async (id: string) => {
+    try {
+      await notesService.trashNote(id);
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
+  const restoreNote = useCallback(async (id: string) => {
+    try {
+      await notesService.restoreNote(id);
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
+  const deleteNotePermanently = useCallback(async (id: string) => {
+    try {
+      await notesService.deleteNotePermanently(id);
+    } catch (error) {
+      throw error;
+    }
+  }, []);
 
   const setSearchQuery = useCallback((query: string) => {
     setState((prev) => ({ ...prev, searchQuery: query }));
@@ -119,6 +173,11 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
         createNote,
         updateNote,
         deleteNote,
+        archiveNote,
+        unarchiveNote,
+        trashNote,
+        restoreNote,
+        deleteNotePermanently,
         setSearchQuery,
       }}
     >

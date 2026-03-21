@@ -8,16 +8,30 @@ import {
   ScrollView,
   Share,
   Platform,
+  Switch,
 } from 'react-native';
 import { showConfirm, showAlert } from '../utils/alert';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useTags } from '../contexts/TagsContext';
 import { FORMAT_OPTIONS } from '../constants/formats';
 import { Colors } from '../constants/colors';
 import { FormatType } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { exportUserData, deleteAccount } from '../services/gdpr';
+import { TagChip } from '../components/TagChip';
+
+const TAG_PALETTE = [
+  '#6366F1',
+  '#EC4899',
+  '#F59E0B',
+  '#10B981',
+  '#3B82F6',
+  '#EF4444',
+  '#8B5CF6',
+  '#14B8A6',
+];
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -26,10 +40,14 @@ export default function SettingsScreen() {
     defaultFormat,
     customExample,
     customInstructions,
+    autotaggingEnabled,
+    isAdmin,
     setDefaultFormat,
     setCustomExample,
     setCustomInstructions,
+    setAutotaggingEnabled,
   } = usePreferences();
+  const { tags, createTag, deleteTag } = useTags();
 
   const [localCustomExample, setLocalCustomExample] = useState(customExample);
   const [savingExample, setSavingExample] = useState(false);
@@ -37,6 +55,12 @@ export default function SettingsScreen() {
   const [savingInstructions, setSavingInstructions] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [togglingAutotagging, setTogglingAutotagging] = useState(false);
+
+  // Tag creation state
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState(TAG_PALETTE[0]);
+  const [creatingTag, setCreatingTag] = useState(false);
 
   useEffect(() => {
     setLocalCustomExample(customExample);
@@ -94,6 +118,46 @@ export default function SettingsScreen() {
 
   const hasCustomInstructionsChanged = localCustomInstructions !== customInstructions;
   const hasCustomExampleChanged = localCustomExample !== customExample;
+
+  const handleToggleAutotagging = async (value: boolean) => {
+    setTogglingAutotagging(true);
+    try {
+      await setAutotaggingEnabled(value);
+    } catch {
+      showAlert('Error', 'Failed to update autotagging setting.');
+    } finally {
+      setTogglingAutotagging(false);
+    }
+  };
+
+  const handleCreateTag = async () => {
+    const trimmed = newTagName.trim();
+    if (!trimmed) return;
+    setCreatingTag(true);
+    try {
+      await createTag(trimmed, newTagColor);
+      setNewTagName('');
+      setNewTagColor(TAG_PALETTE[0]);
+    } catch {
+      showAlert('Error', 'Failed to create tag. A tag with this name may already exist.');
+    } finally {
+      setCreatingTag(false);
+    }
+  };
+
+  const handleDeleteTag = (tagId: string, tagName: string) => {
+    showConfirm(
+      'Delete Tag',
+      `Delete "${tagName}"? It will be removed from all notes.`,
+      async () => {
+        try {
+          await deleteTag(tagId);
+        } catch {
+          showAlert('Error', 'Failed to delete tag.');
+        }
+      }
+    );
+  };
 
   const handleExportData = async () => {
     setExporting(true);
@@ -302,6 +366,134 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        {/* Notes management */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notes</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.navLink,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={() => router.push('/archive')}
+          >
+            <View style={styles.navLinkContent}>
+              <Text style={styles.navLinkIcon}>🗂</Text>
+              <View style={styles.navLinkText}>
+                <Text style={styles.navLinkTitle}>Archive</Text>
+                <Text style={styles.navLinkDesc}>Notes you've archived</Text>
+              </View>
+              <Text style={styles.navLinkChevron}>›</Text>
+            </View>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.navLink,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={() => router.push('/trash')}
+          >
+            <View style={styles.navLinkContent}>
+              <Text style={styles.navLinkIcon}>🗑</Text>
+              <View style={styles.navLinkText}>
+                <Text style={styles.navLinkTitle}>Trash</Text>
+                <Text style={styles.navLinkDesc}>Recently deleted notes (kept 30 days)</Text>
+              </View>
+              <Text style={styles.navLinkChevron}>›</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        {/* Autotagging */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Autotagging</Text>
+          <Text style={styles.sectionDesc}>
+            Automatically suggest tags for new notes using AI.
+          </Text>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleTextContainer}>
+              <Text style={styles.toggleLabel}>Auto-tag notes with AI</Text>
+              <Text style={styles.toggleDesc}>
+                Suggests relevant tags from your tag list when you create a note
+              </Text>
+            </View>
+            <Switch
+              value={autotaggingEnabled}
+              onValueChange={handleToggleAutotagging}
+              disabled={togglingAutotagging}
+              trackColor={{ false: Colors.borderLight, true: Colors.primary }}
+              thumbColor={'#FFFFFF'}
+              accessibilityLabel="Enable autotagging"
+            />
+          </View>
+        </View>
+
+        {/* Tags */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tags</Text>
+          <Text style={styles.sectionDesc}>
+            Create colored tags to organize your notes.
+          </Text>
+
+          {/* Existing tags */}
+          {tags.length > 0 && (
+            <View style={styles.tagsList}>
+              {tags.map((tag) => (
+                <View key={tag.id} style={styles.tagRow}>
+                  <TagChip tag={tag} />
+                  <Pressable
+                    onPress={() => handleDeleteTag(tag.id, tag.name)}
+                    style={({ pressed }) => [
+                      styles.deleteTagButton,
+                      pressed && { opacity: 0.6 },
+                    ]}
+                    accessibilityLabel={`Delete tag ${tag.name}`}
+                  >
+                    <Text style={styles.deleteTagText}>Delete</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Create new tag */}
+          <View style={styles.createTagForm}>
+            <TextInput
+              style={styles.tagNameInput}
+              value={newTagName}
+              onChangeText={setNewTagName}
+              placeholder="New tag name"
+              placeholderTextColor={Colors.textTertiary}
+              maxLength={30}
+            />
+            <View style={styles.tagPalette}>
+              {TAG_PALETTE.map((color) => (
+                <Pressable
+                  key={color}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: color },
+                    newTagColor === color && styles.colorSwatchSelected,
+                  ]}
+                  onPress={() => setNewTagColor(color)}
+                />
+              ))}
+            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.saveExampleButton,
+                (!newTagName.trim() || creatingTag) && styles.saveExampleButtonDisabled,
+                pressed && newTagName.trim() && !creatingTag && { opacity: 0.85 },
+              ]}
+              onPress={handleCreateTag}
+              disabled={!newTagName.trim() || creatingTag}
+            >
+              <Text style={styles.saveExampleButtonText}>
+                {creatingTag ? 'Creating...' : 'Create Tag'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
         {/* Account */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
@@ -366,6 +558,26 @@ export default function SettingsScreen() {
             </Text>
           </Pressable>
         </View>
+
+        {/* Admin */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Administration</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.adminButton,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={() => router.push('/admin')}
+              accessibilityLabel="Open Admin Dashboard"
+            >
+              <Text style={styles.adminButtonText}>Admin Dashboard</Text>
+              <Text style={styles.adminButtonDesc}>
+                Manage members, usage stats, and roles
+              </Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Legal */}
         <View style={styles.section}>
@@ -622,6 +834,136 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   deleteAccountDesc: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  navLink: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Colors.shadow.sm,
+  },
+  navLinkContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  navLinkIcon: {
+    fontSize: 20,
+    marginRight: 14,
+  },
+  navLinkText: {
+    flex: 1,
+  },
+  navLinkTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  navLinkDesc: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+  },
+  navLinkChevron: {
+    fontSize: 20,
+    color: Colors.textTertiary,
+    fontWeight: '300',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    gap: 12,
+  },
+  toggleTextContainer: {
+    flex: 1,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  toggleDesc: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+    lineHeight: 18,
+  },
+  tagsList: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  deleteTagButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.errorLight,
+  },
+  deleteTagText: {
+    fontSize: 12,
+    color: Colors.error,
+    fontWeight: '600',
+  },
+  createTagForm: {
+    gap: 12,
+  },
+  tagNameInput: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+  },
+  tagPalette: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  colorSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  colorSwatchSelected: {
+    borderWidth: 3,
+    borderColor: Colors.text,
+  },
+  adminButton: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+  },
+  adminButtonText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  adminButtonDesc: {
     color: Colors.textTertiary,
     fontSize: 12,
     marginTop: 4,
