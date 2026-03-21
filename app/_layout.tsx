@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { PreferencesProvider } from '../contexts/PreferencesContext';
 import { NotesProvider } from '../contexts/NotesContext';
+import { TagsProvider } from '../contexts/TagsContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '../constants/colors';
 
@@ -95,7 +96,9 @@ export default function RootLayout() {
     <AuthProvider>
       <PreferencesProvider>
         <NotesProvider>
-          <RootLayoutNav />
+          <TagsProvider>
+            <RootLayoutNav />
+          </TagsProvider>
         </NotesProvider>
       </PreferencesProvider>
     </AuthProvider>

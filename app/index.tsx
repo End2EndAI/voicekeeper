@@ -1,18 +1,44 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useNotes } from '../contexts/NotesContext';
+import { useTags } from '../contexts/TagsContext';
 import { NoteGrid } from '../components/NoteGrid';
 import { SearchBar } from '../components/SearchBar';
 import { RecordButton } from '../components/RecordButton';
+import { TagFilterBar } from '../components/TagFilterBar';
 import { Colors } from '../constants/colors';
 import { Note } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as tagsService from '../services/tags';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { filteredNotes, loading, searchQuery, setSearchQuery, fetchNotes } =
     useNotes();
+  const { tags } = useTags();
+
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [tagNoteIds, setTagNoteIds] = useState<string[] | null>(null);
+
+  const handleTagSelect = async (tagId: string | null) => {
+    setSelectedTagId(tagId);
+    if (tagId === null) {
+      setTagNoteIds(null);
+    } else {
+      try {
+        const ids = await tagsService.fetchNotesForTag(tagId);
+        setTagNoteIds(ids);
+      } catch {
+        setTagNoteIds([]);
+      }
+    }
+  };
+
+  const displayedNotes = useMemo(() => {
+    if (selectedTagId === null || tagNoteIds === null) return filteredNotes;
+    return filteredNotes.filter((n) => tagNoteIds.includes(n.id));
+  }, [filteredNotes, selectedTagId, tagNoteIds]);
 
   const handleNotePress = (note: Note) => {
     router.push(`/note/${note.id}`);
@@ -35,8 +61,8 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>VoiceKeeper</Text>
           </View>
           <Text style={styles.subtitle}>
-            {filteredNotes.length > 0
-              ? `${filteredNotes.length} note${filteredNotes.length !== 1 ? 's' : ''}`
+            {displayedNotes.length > 0
+              ? `${displayedNotes.length} note${displayedNotes.length !== 1 ? 's' : ''}`
               : 'No notes yet'}
           </Text>
         </View>
@@ -58,8 +84,14 @@ export default function HomeScreen() {
 
       <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
 
+      <TagFilterBar
+        tags={tags}
+        selectedTagId={selectedTagId}
+        onSelect={handleTagSelect}
+      />
+
       <NoteGrid
-        notes={filteredNotes}
+        notes={displayedNotes}
         loading={loading}
         onNotePress={handleNotePress}
         onRefresh={fetchNotes}
