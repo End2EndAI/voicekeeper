@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Animated, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
 
 interface RecordButtonProps {
@@ -7,6 +8,7 @@ interface RecordButtonProps {
 }
 
 export const RecordButton: React.FC<RecordButtonProps> = ({ onPress }) => {
+  const insets = useSafeAreaInsets();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(0.25)).current;
 
@@ -44,7 +46,7 @@ export const RecordButton: React.FC<RecordButtonProps> = ({ onPress }) => {
   }, [pulseAnim, opacityAnim]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: 32 + insets.bottom }]}>
       <Animated.View
         style={[
           styles.pulseRing,
@@ -75,7 +77,6 @@ export const RecordButton: React.FC<RecordButtonProps> = ({ onPress }) => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 32,
     left: 0,
     right: 0,
     alignItems: 'center',
