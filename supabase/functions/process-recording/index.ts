@@ -2,11 +2,28 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-};
+const ALLOWED_ORIGINS = [
+  'https://voicekeeper.vercel.app',
+  'https://voicekeeper.app',
+  'http://localhost:8081',
+  'http://localhost:8082',
+  'http://localhost:8083',
+  'http://localhost:19006',
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('Origin') ?? '';
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type',
+  };
+}
+
+const MAX_AUDIO_SIZE = 25 * 1024 * 1024; // 25 MB (Whisper API limit)
+const MAX_CUSTOM_INSTRUCTIONS_LENGTH = 1000;
+const MAX_CUSTOM_EXAMPLE_LENGTH = 2000;
 
 const VALID_FORMATS = [
   'bullet_list',
@@ -187,6 +204,8 @@ async function suggestTags(
 }
 
 serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -258,6 +277,13 @@ serve(async (req: Request) => {
       );
     }
 
+    if (audioFile.size > MAX_AUDIO_SIZE) {
+      return new Response(
+        JSON.stringify({ error: 'Audio file too large (max 25MB)' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
     if (!formatType || !VALID_FORMATS.includes(formatType)) {
       return new Response(
         JSON.stringify({
@@ -275,6 +301,14 @@ serve(async (req: Request) => {
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
+
+    // Clamp user-controlled prompt inputs to prevent prompt injection / abuse
+    const safeCustomExample = customExample
+      ? customExample.slice(0, MAX_CUSTOM_EXAMPLE_LENGTH)
+      : null;
+    const safeCustomInstructions = customInstructions
+      ? customInstructions.slice(0, MAX_CUSTOM_INSTRUCTIONS_LENGTH)
+      : null;
 
     const autotaggingEnabled = autotaggingEnabledRaw === 'true';
     let userTags: string[] = [];
@@ -300,8 +334,8 @@ serve(async (req: Request) => {
       const formatted = await formatTranscription(
         transcription,
         formatType,
-        customExample || undefined,
-        customInstructions || undefined
+        safeCustomExample || undefined,
+        safeCustomInstructions || undefined
       );
       formattedText = formatted.content;
       title = formatted.title;
