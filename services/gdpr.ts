@@ -20,6 +20,9 @@ export const exportUserData = async (): Promise<object> => {
  * - Auth user deletion
  */
 export const deleteAccount = async (): Promise<void> => {
+  // Force server-side token validation/refresh before using the access token
+  await supabase.auth.getUser();
+
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Not authenticated');
 

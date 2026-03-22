@@ -10,6 +10,12 @@ export const processRecording = async (
   autotaggingEnabled?: boolean,
   userTagNames?: string[]
 ): Promise<ProcessingResult> => {
+  // Force a server-side token validation and refresh if expired.
+  // getSession() only reads the locally cached token which may be stale/expired,
+  // causing "Invalid JWT" errors at the edge function gateway.
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error('Not authenticated');
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
