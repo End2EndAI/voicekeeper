@@ -11,7 +11,7 @@ jobs:
     name: Build Android APK (preview)
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
 
     steps:
