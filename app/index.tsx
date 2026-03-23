@@ -16,7 +16,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { filteredNotes, loading, searchQuery, setSearchQuery, fetchNotes } =
     useNotes();
-  const { tags } = useTags();
+  const { tags, refreshNoteTagsMap } = useTags();
 
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [tagNoteIds, setTagNoteIds] = useState<string[] | null>(null);
@@ -42,6 +42,10 @@ export default function HomeScreen() {
 
   const handleNotePress = (note: Note) => {
     router.push(`/note/${note.id}`);
+  };
+
+  const handleRefresh = async () => {
+    await Promise.all([fetchNotes(), refreshNoteTagsMap()]);
   };
 
   const handleRecord = () => {
@@ -90,13 +94,15 @@ export default function HomeScreen() {
         onSelect={handleTagSelect}
       />
 
-      <NoteGrid
-        notes={displayedNotes}
-        loading={loading}
-        onNotePress={handleNotePress}
-        onRefresh={fetchNotes}
-        hasActiveFilter={selectedTagId !== null}
-      />
+      <View style={styles.listContainer}>
+        <NoteGrid
+          notes={displayedNotes}
+          loading={loading}
+          onNotePress={handleNotePress}
+          onRefresh={handleRefresh}
+          hasActiveFilter={selectedTagId !== null}
+        />
+      </View>
 
       <RecordButton onPress={handleRecord} />
     </SafeAreaView>
@@ -165,4 +171,7 @@ const styles = StyleSheet.create({
   },
   gearDot2: {},
   gearDot3: {},
+  listContainer: {
+    flex: 1,
+  },
 });
