@@ -39,47 +39,6 @@ export default function RecordScreen() {
 
   const stoppingRef = useRef(false);
 
-  useEffect(() => {
-    checkPermission();
-  }, []);
-
-  useEffect(() => {
-    if (isRecording && duration >= MAX_RECORDING_DURATION_MS) {
-      handleStopRecording();
-    }
-  }, [duration, isRecording, handleStopRecording]);
-
-  const checkPermission = async () => {
-    const { granted } = await requestRecordingPermissionsAsync();
-    setPermissionGranted(granted);
-    if (granted) {
-      startRecordingWithPermission();
-    }
-  };
-
-  const startRecordingWithPermission = async () => {
-    try {
-      setError(null);
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-    } catch (err: any) {
-      setError('Failed to start recording. Please try again.');
-      console.error('Recording start error:', err);
-    }
-  };
-
-  const startRecording = async () => {
-    if (!permissionGranted) {
-      const { granted } = await requestRecordingPermissionsAsync();
-      if (!granted) {
-        setError('Microphone permission is required. Please enable it in your device settings.');
-        return;
-      }
-      setPermissionGranted(true);
-    }
-    startRecordingWithPermission();
-  };
-
   const handleStopRecording = useCallback(async () => {
     if (!recorderState.isRecording || stoppingRef.current) return;
     stoppingRef.current = true;
@@ -120,6 +79,47 @@ export default function RecordScreen() {
       stoppingRef.current = false;
     }
   }, [recorder, recorderState.isRecording, duration, defaultFormat, customExample, customInstructions, saveRecording, router]);
+
+  useEffect(() => {
+    checkPermission();
+  }, []);
+
+  useEffect(() => {
+    if (isRecording && duration >= MAX_RECORDING_DURATION_MS) {
+      handleStopRecording();
+    }
+  }, [duration, isRecording, handleStopRecording]);
+
+  const checkPermission = async () => {
+    const { granted } = await requestRecordingPermissionsAsync();
+    setPermissionGranted(granted);
+    if (granted) {
+      startRecordingWithPermission();
+    }
+  };
+
+  const startRecordingWithPermission = async () => {
+    try {
+      setError(null);
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+    } catch (err: any) {
+      setError('Failed to start recording. Please try again.');
+      console.error('Recording start error:', err);
+    }
+  };
+
+  const startRecording = async () => {
+    if (!permissionGranted) {
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        setError('Microphone permission is required. Please enable it in your device settings.');
+        return;
+      }
+      setPermissionGranted(true);
+    }
+    startRecordingWithPermission();
+  };
 
   const handleCancel = async () => {
     if (recorderState.isRecording) {
