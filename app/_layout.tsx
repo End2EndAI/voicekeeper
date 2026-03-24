@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { PreferencesProvider } from '../contexts/PreferencesContext';
 import { NotesProvider } from '../contexts/NotesContext';
 import { TagsProvider } from '../contexts/TagsContext';
+import { RecordingsProvider } from '../contexts/RecordingsContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '../constants/colors';
 
@@ -97,7 +98,9 @@ export default function RootLayout() {
       <PreferencesProvider>
         <NotesProvider>
           <TagsProvider>
-            <RootLayoutNav />
+            <RecordingsProvider>
+              <RootLayoutNav />
+            </RecordingsProvider>
           </TagsProvider>
         </NotesProvider>
       </PreferencesProvider>

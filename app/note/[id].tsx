@@ -19,6 +19,7 @@ import { Colors } from '../../constants/colors';
 import { formatDate } from '../../utils/titleGenerator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Tag } from '../../types';
+import { AudioPlaybackBar } from '../../components/AudioPlaybackBar';
 
 export default function NoteDetailScreen() {
   const router = useRouter();
@@ -225,6 +226,8 @@ export default function NoteDetailScreen() {
           <FormatBadge formatType={note.format_type} size="medium" />
           <Text style={styles.date}>{formatDate(note.created_at)}</Text>
         </View>
+
+        {note.audio_uri && <AudioPlaybackBar localUri={note.audio_uri} />}
 
         {isEditing ? (
           <>

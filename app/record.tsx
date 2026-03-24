@@ -16,12 +16,14 @@ import { AudioWaveform } from '../components/AudioWaveform';
 import { Colors } from '../constants/colors';
 import { MAX_RECORDING_DURATION_MS } from '../constants/formats';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useRecordings } from '../contexts/RecordingsContext';
 import { showAlert } from '../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RecordScreen() {
   const router = useRouter();
   const { defaultFormat, customExample, customInstructions } = usePreferences();
+  const { saveRecording } = useRecordings();
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,10 +99,11 @@ export default function RecordScreen() {
         return;
       }
 
+      const recording = await saveRecording(uri, duration);
       router.replace({
-        pathname: '/preview',
+        pathname: `/recording/${recording.id}`,
         params: {
-          audioUri: uri,
+          autoAdvance: 'true',
           formatType: defaultFormat,
           ...(defaultFormat === 'custom' && customExample ? { customExample } : {}),
           ...(customInstructions ? { customInstructions } : {}),
@@ -110,7 +113,7 @@ export default function RecordScreen() {
       setError('Failed to stop recording. Please try again.');
       console.error('Recording stop error:', err);
     }
-  }, [recorder, recorderState.isRecording, defaultFormat, customExample, customInstructions, router]);
+  }, [recorder, recorderState.isRecording, duration, defaultFormat, customExample, customInstructions, saveRecording, router]);
 
   const handleCancel = async () => {
     if (recorderState.isRecording) {
