@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, Pressable,
 } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { Colors } from '../constants/colors';
 
@@ -16,6 +17,11 @@ export function AudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBar
   const [seekValue, setSeekValue] = useState(0);
 
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      // On web, FileSystem.getInfoAsync is unavailable; blob/object URLs are valid if they exist
+      setFileAvailable(!!localUri);
+      return;
+    }
     FileSystem.getInfoAsync(localUri)
       .then(info => {
         setFileAvailable(info.exists);
