@@ -385,6 +385,16 @@ export default function RecordingDetailScreen() {
         {showFormatPicker && (
           <View style={styles.formatPicker}>
             <Text style={styles.formatPickerTitle}>Format as…</Text>
+            <Text style={styles.formatInstructionsLabel}>Custom instructions (optional)</Text>
+            <TextInput
+              style={styles.formatInstructionsInput}
+              value={reformatInstructions}
+              onChangeText={setReformatInstructions}
+              placeholder='e.g. "Be concise", "Translate in English"'
+              placeholderTextColor="#aaa"
+              multiline
+              textAlignVertical="top"
+            />
             {FORMAT_OPTIONS.map((opt) => (
               <Pressable
                 key={opt.value}
@@ -405,16 +415,6 @@ export default function RecordingDetailScreen() {
                 </View>
               </Pressable>
             ))}
-            <Text style={styles.formatInstructionsLabel}>Custom instructions (optional)</Text>
-            <TextInput
-              style={styles.formatInstructionsInput}
-              value={reformatInstructions}
-              onChangeText={setReformatInstructions}
-              placeholder='e.g. "Be concise", "Always respond in French"'
-              placeholderTextColor="#aaa"
-              multiline
-              textAlignVertical="top"
-            />
             <Pressable
               style={styles.formatCancelButton}
               onPress={() => setShowFormatPicker(false)}
