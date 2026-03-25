@@ -21,39 +21,43 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Tag } from '../../types';
 import { AudioPlaybackBar } from '../../components/AudioPlaybackBar';
 
-// Renders action_items format: parses "- [ ] ..." and "- [x] ..." lines as visual checkboxes
-function ActionItemsList({ text }: { text: string }) {
+// Parses action_items markdown into a structured list with tappable checkboxes.
+// Toggling a checkbox updates the underlying markdown text and persists via onTextChange.
+function ActionItemsList({ text, onTextChange }: { text: string; onTextChange?: (updated: string) => void }) {
   const lines = text.split('\n');
-  const items: { label: string; checked: boolean }[] = [];
-  const other: { line: string; index: number }[] = [];
 
-  lines.forEach((line, i) => {
-    const unchecked = line.match(/^-\s+\[\s\]\s+(.+)/);
-    const checked = line.match(/^-\s+\[x\]\s+(.+)/i);
-    if (unchecked) {
-      items.push({ label: unchecked[1], checked: false });
-    } else if (checked) {
-      items.push({ label: checked[1], checked: true });
-    } else if (line.trim()) {
-      other.push({ line, index: i });
-    }
-  });
+  const toggle = (lineIndex: number) => {
+    const updated = lines.map((line, i) => {
+      if (i !== lineIndex) return line;
+      if (line.match(/^-\s+\[\s\]\s+/)) return line.replace(/^(-\s+)\[\s\]/, '$1[x]');
+      if (line.match(/^-\s+\[x\]\s+/i)) return line.replace(/^(-\s+)\[x\]/i, '$1[ ]');
+      return line;
+    }).join('\n');
+    onTextChange?.(updated);
+  };
 
   return (
     <View>
-      {items.map((item, i) => (
-        <View key={i} style={actionStyles.row}>
-          <View style={[actionStyles.checkbox, item.checked && actionStyles.checkboxChecked]}>
-            {item.checked && <Text style={actionStyles.checkmark}>✓</Text>}
-          </View>
-          <Text style={[actionStyles.label, item.checked && actionStyles.labelChecked]}>
-            {item.label}
-          </Text>
-        </View>
-      ))}
-      {other.map(({ line, index }) => (
-        <Markdown key={index} style={markdownStyles}>{line}</Markdown>
-      ))}
+      {lines.map((line, i) => {
+        const unchecked = line.match(/^-\s+\[\s\]\s+(.+)/);
+        const checked = line.match(/^-\s+\[x\]\s+(.+)/i);
+        if (unchecked || checked) {
+          const isChecked = !!checked;
+          const label = (unchecked ?? checked)![1];
+          return (
+            <Pressable key={i} style={actionStyles.row} onPress={() => toggle(i)}>
+              <View style={[actionStyles.checkbox, isChecked && actionStyles.checkboxChecked]}>
+                {isChecked && <Text style={actionStyles.checkmark}>✓</Text>}
+              </View>
+              <Text style={[actionStyles.label, isChecked && actionStyles.labelChecked]}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        }
+        if (!line.trim()) return null;
+        return <Markdown key={i} style={markdownStyles}>{line}</Markdown>;
+      })}
     </View>
   );
 }
@@ -340,7 +344,10 @@ export default function NoteDetailScreen() {
           <>
             <Text style={styles.title}>{note.title}</Text>
             {note.format_type === 'action_items' ? (
-              <ActionItemsList text={note.formatted_text} />
+              <ActionItemsList
+                text={note.formatted_text}
+                onTextChange={(updated) => updateNote(note.id, { formatted_text: updated })}
+              />
             ) : (
               <Markdown style={markdownStyles}>{note.formatted_text}</Markdown>
             )}
