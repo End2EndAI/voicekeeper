@@ -17,6 +17,7 @@ interface PreferencesState {
   customInstructions: string;
   autotaggingEnabled: boolean;
   isAdmin: boolean;
+  tier: 'free' | 'unlimited';
   loading: boolean;
 }
 
@@ -41,6 +42,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     customInstructions: '',
     autotaggingEnabled: false,
     isAdmin: false,
+    tier: 'free',
     loading: true,
   });
 
@@ -48,7 +50,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     if (session) {
       loadPreferences();
     } else {
-      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', autotaggingEnabled: false, isAdmin: false, loading: false });
+      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', autotaggingEnabled: false, isAdmin: false, tier: 'free', loading: false });
     }
   }, [session]);
 
@@ -61,6 +63,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
         customInstructions: prefs?.custom_instructions ?? '',
         autotaggingEnabled: prefs?.autotagging_enabled ?? false,
         isAdmin: prefs?.is_admin ?? false,
+        tier: prefs?.tier ?? 'free',
         loading: false,
       });
     } catch (error) {
