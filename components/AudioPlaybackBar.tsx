@@ -3,7 +3,6 @@ import {
   View, Text, StyleSheet, Pressable, Platform,
 } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { Colors } from '../constants/colors';
 
