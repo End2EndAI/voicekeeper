@@ -96,8 +96,10 @@ jobs:
 
       - name: Publish production update (main)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           eas update \
             --branch main \
-            --message "${{ github.event.head_commit.message }}" \
+            --message "$COMMIT_MESSAGE" \
             --non-interactive
