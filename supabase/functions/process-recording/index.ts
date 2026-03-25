@@ -56,7 +56,7 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 const SHARED_SUFFIX =
   `Also generate an expressive, descriptive title that captures the core subject or idea.
 Good title: "App to benchmark LLM providers" — Bad title: "Je veux créer une application" (first words of the transcription).
-Always respond in the same language as the transcription.
+Always respond in the same language as the transcription, unless the user instructs otherwise.
 Respond ONLY with a valid JSON object with exactly two fields: "title" (string) and "content" (string containing the formatted note in markdown).`;
 
 function buildSystemPrompt(formatType: string, customExample?: string, customInstructions?: string): string {
