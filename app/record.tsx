@@ -22,7 +22,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RecordScreen() {
   const router = useRouter();
-  const { defaultFormat, customExample, customInstructions, isAdmin } = usePreferences();
+  const { defaultFormat, customExample, customInstructions, isAdmin, tier } = usePreferences();
+  const isUnlimited = isAdmin || tier === 'unlimited';
   const { saveRecording } = useRecordings();
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +117,7 @@ export default function RecordScreen() {
   }, [recorder, recorderState.isRecording, duration, defaultFormat, customExample, customInstructions, saveRecording, router]);
 
   useEffect(() => {
-    if (!isAdmin && isRecording && duration >= MAX_RECORDING_DURATION_MS) {
+    if (!isUnlimited && isRecording && duration >= MAX_RECORDING_DURATION_MS) {
       handleStopRecording();
     }
   }, [duration, isRecording, handleStopRecording]);
@@ -137,8 +138,8 @@ export default function RecordScreen() {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const maxDurationFormatted = isAdmin ? '∞' : formatDuration(MAX_RECORDING_DURATION_MS);
-  const progress = isAdmin ? 0 : Math.min(duration / MAX_RECORDING_DURATION_MS, 1);
+  const maxDurationFormatted = isUnlimited ? '∞' : formatDuration(MAX_RECORDING_DURATION_MS);
+  const progress = isUnlimited ? 0 : Math.min(duration / MAX_RECORDING_DURATION_MS, 1);
 
   if (permissionGranted === false) {
     return (
