@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  View, Text, StyleSheet, Pressable,
+  View, Text, StyleSheet, Pressable, Platform,
 } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Platform } from 'react-native';
@@ -12,7 +12,73 @@ interface AudioPlaybackBarProps {
   onPlaybackError?: (err: Error) => void;
 }
 
+// Web-only audio player using HTMLAudioElement
+function WebAudioPlaybackBar({ localUri }: AudioPlaybackBarProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    const audio = new Audio(localUri);
+    audioRef.current = audio;
+    audio.onloadedmetadata = () => setDuration(audio.duration);
+    audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
+    audio.onended = () => setIsPlaying(false);
+    return () => { audio.pause(); audioRef.current = null; };
+  }, [localUri]);
+
+  const handlePlayPause = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+    } else {
+      audio.play();
+      setIsPlaying(true);
+    }
+  }, [isPlaying]);
+
+  const seekValue = duration > 0 ? currentTime / duration : 0;
+
+  const formatTime = (seconds: number) => {
+    const s = Math.floor(seconds);
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  };
+
+  return (
+    <View style={styles.container}>
+      <Pressable
+        onPress={handlePlayPause}
+        style={({ pressed }) => [styles.playButton, pressed && { opacity: 0.7 }]}
+        accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+      >
+        <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶'}</Text>
+      </Pressable>
+      <View style={styles.trackContainer}>
+        <View style={styles.track}>
+          <View style={[styles.fill, { width: `${seekValue * 100}%` }]} />
+        </View>
+        <View style={styles.timeRow}>
+          <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+          <Text style={styles.timeText}>{formatTime(duration)}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function AudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarProps) {
+  // On web, use the HTML Audio API directly — blob URLs don't work with expo-file-system
+  if (Platform.OS === 'web') {
+    return <WebAudioPlaybackBar localUri={localUri} onPlaybackError={onPlaybackError} />;
+  }
+
+  return <NativeAudioPlaybackBar localUri={localUri} onPlaybackError={onPlaybackError} />;
+}
+
+function NativeAudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarProps) {
   const [fileAvailable, setFileAvailable] = useState<boolean | null>(null);
   const [seekValue, setSeekValue] = useState(0);
 
@@ -59,7 +125,6 @@ export function AudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBar
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   };
 
-  // Still checking file availability
   if (fileAvailable === null) {
     return (
       <View style={styles.unavailable}>

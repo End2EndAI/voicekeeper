@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
-  ActivityIndicator, Alert,
+  ActivityIndicator, TextInput,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Markdown from 'react-native-markdown-display';
@@ -14,7 +14,7 @@ import { transcribeRecording, formatTranscription } from '../../services/process
 import { Colors } from '../../constants/colors';
 import { FORMAT_OPTIONS } from '../../constants/formats';
 import { FormatType, RecordingStatus } from '../../types';
-import { showAlert } from '../../utils/alert';
+import { showAlert, showConfirm } from '../../utils/alert';
 import { AudioPlaybackBar } from '../../components/AudioPlaybackBar';
 
 // Status badge colors
@@ -63,6 +63,7 @@ export default function RecordingDetailScreen() {
   );
   const [showFormatPicker, setShowFormatPicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [reformatInstructions, setReformatInstructions] = useState(customInstructions ?? '');
 
   // E4-S3: Auto-advance guard — prevents double-fire in React StrictMode
   const autoAdvanceRef = useRef(false);
@@ -177,7 +178,7 @@ export default function RecordingDetailScreen() {
         recording.rawTranscription!,
         formatType,
         customExample || undefined,
-        customInstructions || undefined,
+        reformatInstructions || undefined,
         autotaggingEnabled,
         currentTags
       );
@@ -226,20 +227,24 @@ export default function RecordingDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    showConfirm(
       'Delete Recording',
       'This will permanently delete the audio file. Any saved note will remain.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteRecording(id);
-            router.back();
-          },
-        },
-      ]
+      async () => {
+        await deleteRecording(id);
+        router.back();
+      }
+    );
+  };
+
+  const handleRetranscribe = () => {
+    showConfirm(
+      'Re-transcribe',
+      'This will replace the existing transcript and formatted note. Continue?',
+      async () => {
+        await updateRecording(id, { status: 'pending', rawTranscription: undefined, formattedText: undefined, formattedTitle: undefined });
+        handleTranscribe();
+      }
     );
   };
 
@@ -266,7 +271,7 @@ export default function RecordingDetailScreen() {
           <Text style={styles.topButtonText}>← Back</Text>
         </Pressable>
         <Text style={styles.topTitle}>{formatRelativeDate(recording.createdAt)}</Text>
-        <Pressable onPress={handleDelete} style={styles.topButton}>
+        <Pressable onPress={handleDelete} style={styles.deleteButton} accessibilityLabel="Delete recording">
           <Text style={styles.deleteIconText}>🗑</Text>
         </Pressable>
       </View>
@@ -356,7 +361,23 @@ export default function RecordingDetailScreen() {
               >
                 <Text style={styles.secondaryButtonText}>Reformat</Text>
               </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+                onPress={handleRetranscribe}
+              >
+                <Text style={styles.secondaryButtonText}>Re-transcribe</Text>
+              </Pressable>
             </>
+          )}
+
+          {recording.status === 'transcribed' && (
+            <Pressable
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+              onPress={handleRetranscribe}
+            >
+              <Text style={styles.secondaryButtonText}>Re-transcribe</Text>
+            </Pressable>
           )}
         </View>
 
@@ -384,6 +405,16 @@ export default function RecordingDetailScreen() {
                 </View>
               </Pressable>
             ))}
+            <Text style={styles.formatInstructionsLabel}>Custom instructions (optional)</Text>
+            <TextInput
+              style={styles.formatInstructionsInput}
+              value={reformatInstructions}
+              onChangeText={setReformatInstructions}
+              placeholder='e.g. "Be concise", "Always respond in French"'
+              placeholderTextColor="#aaa"
+              multiline
+              textAlignVertical="top"
+            />
             <Pressable
               style={styles.formatCancelButton}
               onPress={() => setShowFormatPicker(false)}
@@ -430,7 +461,8 @@ const styles = StyleSheet.create({
   topButton: { padding: 4, minWidth: 60 },
   topButtonText: { color: Colors.primary, fontSize: 15, fontWeight: '500' },
   topTitle: { fontSize: 15, fontWeight: '600', color: Colors.text },
-  deleteIconText: { fontSize: 20, textAlign: 'right' },
+  deleteButton: { padding: 8, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
+  deleteIconText: { fontSize: 22 },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 60 },
   statusRow: {
@@ -477,6 +509,15 @@ const styles = StyleSheet.create({
   formatOptionIcon: { fontSize: 20, width: 28, textAlign: 'center' },
   formatOptionLabel: { fontSize: 14, fontWeight: '600', color: Colors.text },
   formatOptionDesc: { fontSize: 12, color: Colors.textTertiary },
+  formatInstructionsLabel: {
+    fontSize: 12, fontWeight: '600', color: Colors.textTertiary,
+    textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 12, marginBottom: 6,
+  },
+  formatInstructionsInput: {
+    borderWidth: 1, borderColor: Colors.border, borderRadius: 10,
+    padding: 10, fontSize: 14, color: Colors.text,
+    minHeight: 60, backgroundColor: Colors.background,
+  },
   formatCancelButton: { marginTop: 8, paddingVertical: 8, alignItems: 'center' },
   formatCancelText: { color: Colors.textSecondary, fontSize: 14 },
   section: {
