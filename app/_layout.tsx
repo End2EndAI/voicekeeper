@@ -68,6 +68,14 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
+          name="note-create"
+          options={{
+            title: 'New Note',
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="preview"
           options={{ title: 'Preview', headerShown: false }}
         />

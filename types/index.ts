@@ -22,13 +22,16 @@ export interface Recording {
   noteId?: string;             // Supabase note id once saved
 }
 
+export type NoteSource = 'voice' | 'text';
+
 export interface Note {
   id: string;
   user_id: string;
   title: string;
   formatted_text: string;
-  raw_transcription: string;
+  raw_transcription?: string | null;
   format_type: FormatType;
+  source: NoteSource;
   created_at: string;
   updated_at: string;
   archived_at?: string | null;
@@ -67,9 +70,10 @@ export interface ProcessingResult {
 export interface CreateNoteInput {
   title: string;
   formatted_text: string;
-  raw_transcription: string;
+  raw_transcription?: string | null;
   format_type: FormatType;
   audio_uri?: string;
+  source?: NoteSource;
 }
 
 export interface UpdateNoteInput {

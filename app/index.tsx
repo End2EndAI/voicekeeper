@@ -52,6 +52,10 @@ export default function HomeScreen() {
     router.push('/record');
   };
 
+  const handleNewTextNote = () => {
+    router.push('/note-create');
+  };
+
   const handleSettings = () => {
     router.push('/settings');
   };
@@ -120,7 +124,7 @@ export default function HomeScreen() {
         />
       </View>
 
-      <RecordButton onPress={handleRecord} />
+      <RecordButton onPress={handleRecord} onTextNotePress={handleNewTextNote} />
     </SafeAreaView>
   );
 }

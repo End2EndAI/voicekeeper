@@ -115,7 +115,7 @@ export const searchNotes = async (query: string): Promise<Note[]> => {
     .is('deleted_at', null)
     .is('archived_at', null)
     .or(
-      `title.ilike.%${query}%,formatted_text.ilike.%${query}%,raw_transcription.ilike.%${query}%`
+      `title.ilike.%${query}%,formatted_text.ilike.%${query}%`
     )
     .order('created_at', { ascending: false });
   if (error) throw error;
