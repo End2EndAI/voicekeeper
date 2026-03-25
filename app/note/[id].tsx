@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,84 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Tag } from '../../types';
 import { AudioPlaybackBar } from '../../components/AudioPlaybackBar';
 
+// Renders action_items format: parses "- [ ] ..." and "- [x] ..." lines as visual checkboxes
+function ActionItemsList({ text }: { text: string }) {
+  const lines = text.split('\n');
+  const items: { label: string; checked: boolean }[] = [];
+  const other: { line: string; index: number }[] = [];
+
+  lines.forEach((line, i) => {
+    const unchecked = line.match(/^-\s+\[\s\]\s+(.+)/);
+    const checked = line.match(/^-\s+\[x\]\s+(.+)/i);
+    if (unchecked) {
+      items.push({ label: unchecked[1], checked: false });
+    } else if (checked) {
+      items.push({ label: checked[1], checked: true });
+    } else if (line.trim()) {
+      other.push({ line, index: i });
+    }
+  });
+
+  return (
+    <View>
+      {items.map((item, i) => (
+        <View key={i} style={actionStyles.row}>
+          <View style={[actionStyles.checkbox, item.checked && actionStyles.checkboxChecked]}>
+            {item.checked && <Text style={actionStyles.checkmark}>✓</Text>}
+          </View>
+          <Text style={[actionStyles.label, item.checked && actionStyles.labelChecked]}>
+            {item.label}
+          </Text>
+        </View>
+      ))}
+      {other.map(({ line, index }) => (
+        <Markdown key={index} style={markdownStyles}>{line}</Markdown>
+      ))}
+    </View>
+  );
+}
+
+const actionStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginVertical: 6,
+    gap: 12,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  label: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.text,
+    lineHeight: 24,
+  },
+  labelChecked: {
+    color: Colors.textTertiary,
+    textDecorationLine: 'line-through',
+  },
+});
+
 export default function NoteDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,6 +112,13 @@ export default function NoteDetailScreen() {
   const [editTitle, setEditTitle] = useState(note?.title ?? '');
   const [editText, setEditText] = useState(note?.formatted_text ?? '');
   const [saving, setSaving] = useState(false);
+  const titleInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      setTimeout(() => titleInputRef.current?.focus(), 50);
+    }
+  }, [isEditing]);
 
   const [noteTags, setNoteTags] = useState<Tag[]>([]);
   const [tagPickerVisible, setTagPickerVisible] = useState(false);
@@ -232,11 +317,14 @@ export default function NoteDetailScreen() {
         {isEditing ? (
           <>
             <TextInput
+              ref={titleInputRef}
               style={styles.titleInput}
               value={editTitle}
               onChangeText={setEditTitle}
               placeholder="Title"
               placeholderTextColor={Colors.textTertiary}
+              selectTextOnFocus
+              returnKeyType="next"
             />
             <TextInput
               style={styles.textInput}
@@ -251,7 +339,11 @@ export default function NoteDetailScreen() {
         ) : (
           <>
             <Text style={styles.title}>{note.title}</Text>
-            <Markdown style={markdownStyles}>{note.formatted_text}</Markdown>
+            {note.format_type === 'action_items' ? (
+              <ActionItemsList text={note.formatted_text} />
+            ) : (
+              <Markdown style={markdownStyles}>{note.formatted_text}</Markdown>
+            )}
           </>
         )}
 
@@ -312,11 +404,53 @@ const markdownStyles = {
     color: Colors.text,
     lineHeight: 26,
   },
+  // Headings (meeting_notes uses ## for sections)
+  heading2: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginTop: 20,
+    marginBottom: 6,
+    letterSpacing: 0.1,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    paddingBottom: 4,
+  },
+  heading3: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  // Lists
   bullet_list: {
     marginVertical: 4,
   },
+  ordered_list: {
+    marginVertical: 4,
+  },
   list_item: {
-    marginVertical: 2,
+    marginVertical: 3,
+  },
+  // Checkbox items (action_items uses - [ ] and - [x])
+  // react-native-markdown-display renders these via bullet_list + list_item
+  // The checkbox character is part of the text content
+  strong: {
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  em: {
+    fontStyle: 'italic' as const,
+    color: Colors.textSecondary,
+  },
+  code_inline: {
+    fontFamily: 'monospace',
+    backgroundColor: Colors.surfaceHover,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    fontSize: 14,
   },
 };
 
