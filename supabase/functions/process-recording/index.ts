@@ -123,6 +123,7 @@ async function formatTranscription(
     },
     body: JSON.stringify({
       model: 'gpt-5-nano',
+      reasoning_effort: 'minimal',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: transcription },
@@ -156,6 +157,7 @@ async function suggestTags(
     },
     body: JSON.stringify({
       model: 'gpt-5-nano',
+      reasoning_effort: 'minimal',
       messages: [
         {
           role: 'system',
