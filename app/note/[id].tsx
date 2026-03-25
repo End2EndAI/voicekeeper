@@ -6,19 +6,23 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { showConfirm, showAlert } from '../../utils/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useNotes } from '../../contexts/NotesContext';
 import { useTags } from '../../contexts/TagsContext';
+import { usePreferences } from '../../contexts/PreferencesContext';
 import { FormatBadge } from '../../components/FormatBadge';
 import { TagChip } from '../../components/TagChip';
 import { TagPicker } from '../../components/TagPicker';
 import { Colors } from '../../constants/colors';
+import { FORMAT_OPTIONS } from '../../constants/formats';
 import { formatDate } from '../../utils/titleGenerator';
+import { formatTranscription } from '../../services/processing';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Tag } from '../../types';
+import { Tag, FormatType } from '../../types';
 import { AudioPlaybackBar } from '../../components/AudioPlaybackBar';
 
 // Parses action_items markdown into a structured list with tappable checkboxes.
@@ -109,14 +113,21 @@ export default function NoteDetailScreen() {
   const { notes, updateNote, deleteNote, archiveNote } = useNotes();
   const { tags, createTag, addTagToNote, removeTagFromNote, fetchTagsForNote } =
     useTags();
+  const { customExample } = usePreferences();
 
   const note = useMemo(() => notes.find((n) => n.id === id), [notes, id]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(note?.title ?? '');
   const [editText, setEditText] = useState(note?.formatted_text ?? '');
+  const [editFormatType, setEditFormatType] = useState<FormatType>(note?.format_type ?? 'paragraph');
   const [saving, setSaving] = useState(false);
   const titleInputRef = useRef<TextInput>(null);
+
+  const [showFormatPicker, setShowFormatPicker] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<FormatType | null>(null);
+  const [reformatInstructions, setReformatInstructions] = useState('');
+  const [reformatting, setReformatting] = useState(false);
 
   useEffect(() => {
     if (isEditing) {
@@ -158,6 +169,7 @@ export default function NoteDetailScreen() {
       await updateNote(note.id, {
         title: editTitle,
         formatted_text: editText,
+        format_type: editFormatType,
       });
       setIsEditing(false);
     } catch (err: unknown) {
@@ -200,7 +212,34 @@ export default function NoteDetailScreen() {
   const handleCancelEdit = () => {
     setEditTitle(note.title);
     setEditText(note.formatted_text);
+    setEditFormatType(note.format_type);
     setIsEditing(false);
+    setShowFormatPicker(false);
+    setReformatInstructions('');
+    setSelectedFormat(null);
+  };
+
+  const handleReformat = async (formatType: FormatType) => {
+    setSelectedFormat(formatType);
+    setReformatting(true);
+    try {
+      const result = await formatTranscription(
+        editText,
+        formatType,
+        formatType === 'custom' ? customExample || undefined : undefined,
+        reformatInstructions || undefined,
+      );
+      setEditTitle(result.title);
+      setEditText(result.formatted_text);
+      setEditFormatType(formatType);
+      setShowFormatPicker(false);
+      setReformatInstructions('');
+      setSelectedFormat(null);
+    } catch (err: unknown) {
+      showAlert('Error', 'Failed to reformat note. Please try again.');
+    } finally {
+      setReformatting(false);
+    }
   };
 
   const handleToggleTag = async (tagId: string) => {
@@ -256,6 +295,17 @@ export default function NoteDetailScreen() {
                 <Text style={styles.cancelActionText}>Cancel</Text>
               </Pressable>
               <Pressable
+                onPress={() => setShowFormatPicker((v) => !v)}
+                disabled={reformatting}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && { opacity: 0.6 },
+                  reformatting && { opacity: 0.4 },
+                ]}
+              >
+                <Text style={styles.formatActionText}>Format</Text>
+              </Pressable>
+              <Pressable
                 onPress={handleSave}
                 style={({ pressed }) => [
                   styles.actionButton,
@@ -275,6 +325,7 @@ export default function NoteDetailScreen() {
                 onPress={() => {
                   setEditTitle(note.title);
                   setEditText(note.formatted_text);
+                  setEditFormatType(note.format_type);
                   setIsEditing(true);
                 }}
                 style={({ pressed }) => [
@@ -339,6 +390,55 @@ export default function NoteDetailScreen() {
               multiline
               textAlignVertical="top"
             />
+
+            {/* Inline format picker */}
+            {showFormatPicker && (
+              <View style={styles.formatPicker}>
+                <Text style={styles.formatPickerTitle}>Format as…</Text>
+                <Text style={styles.formatInstructionsLabel}>Custom instructions (optional)</Text>
+                <TextInput
+                  style={styles.formatInstructionsInput}
+                  value={reformatInstructions}
+                  onChangeText={setReformatInstructions}
+                  placeholder='e.g. "Be concise", "Translate in English"'
+                  placeholderTextColor="#aaa"
+                  multiline
+                  textAlignVertical="top"
+                />
+                {reformatting ? (
+                  <View style={styles.reformattingRow}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <Text style={styles.reformattingText}>Reformatting…</Text>
+                  </View>
+                ) : (
+                  <>
+                    {FORMAT_OPTIONS.map((opt) => (
+                      <Pressable
+                        key={opt.value}
+                        style={({ pressed }) => [
+                          styles.formatOption,
+                          selectedFormat === opt.value && styles.formatOptionSelected,
+                          pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+                        ]}
+                        onPress={() => handleReformat(opt.value)}
+                      >
+                        <Text style={styles.formatOptionIcon}>{opt.icon}</Text>
+                        <View>
+                          <Text style={styles.formatOptionLabel}>{opt.label}</Text>
+                          <Text style={styles.formatOptionDesc}>{opt.description}</Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                    <Pressable
+                      style={styles.formatCancelButton}
+                      onPress={() => setShowFormatPicker(false)}
+                    >
+                      <Text style={styles.formatCancelText}>Cancel</Text>
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            )}
           </>
         ) : (
           <>
@@ -518,6 +618,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  formatActionText: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '500',
+  },
   cancelActionText: {
     color: Colors.textSecondary,
     fontSize: 16,
@@ -644,5 +749,85 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 22,
     fontStyle: 'italic',
+  },
+  formatPicker: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  formatPickerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  formatInstructionsLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  formatInstructionsInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    padding: 10,
+    fontSize: 14,
+    color: Colors.text,
+    minHeight: 60,
+    backgroundColor: Colors.background,
+    marginBottom: 8,
+  },
+  formatOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  formatOptionSelected: {
+    backgroundColor: Colors.primarySubtle,
+  },
+  formatOptionIcon: {
+    fontSize: 20,
+    width: 28,
+    textAlign: 'center',
+  },
+  formatOptionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  formatOptionDesc: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+  },
+  formatCancelButton: {
+    marginTop: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  formatCancelText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
+  reformattingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  reformattingText: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '500',
   },
 });
