@@ -56,7 +56,7 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 const SHARED_SUFFIX =
   `Also generate an expressive, descriptive title that captures the core subject or idea.
 Good title: "App to benchmark LLM providers" — Bad title: "Je veux créer une application" (first words of the transcription).
-Always respond in the same language as the transcription.
+Always respond in the same language as the transcription, unless the user instructs otherwise.
 Respond ONLY with a valid JSON object with exactly two fields: "title" (string) and "content" (string containing the formatted note in markdown).`;
 
 function buildSystemPrompt(formatType: string, customExample?: string, customInstructions?: string): string {
@@ -123,6 +123,7 @@ async function formatTranscription(
     },
     body: JSON.stringify({
       model: 'gpt-5-nano',
+      reasoning_effort: 'minimal',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: transcription },
@@ -156,6 +157,7 @@ async function suggestTags(
     },
     body: JSON.stringify({
       model: 'gpt-5-nano',
+      reasoning_effort: 'minimal',
       messages: [
         {
           role: 'system',
@@ -223,7 +225,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // Check daily note limit (free tier: 5/day)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -240,28 +241,113 @@ serve(async (req: Request) => {
       );
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: allowance, error: allowanceError } = await adminClient.rpc(
-      'check_note_allowance',
-      { p_user_id: user.id }
-    );
+    // Parse multipart form data
+    const formData = await req.formData();
 
-    if (allowanceError) {
-      console.error('Allowance check error:', allowanceError);
-    } else if (!allowance.allowed) {
+    // Parse mode — determines which processing steps to run
+    const modeRaw = (formData.get('mode') as string) ?? 'full';
+    const validModes = ['full', 'transcribe_only', 'format_only'];
+    const processingMode = validModes.includes(modeRaw) ? modeRaw : 'full';
+
+    // Daily limit only applies to steps that use the LLM (format_only, full)
+    if (processingMode !== 'transcribe_only') {
+      const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: allowance, error: allowanceError } = await adminClient.rpc(
+        'check_note_allowance',
+        { p_user_id: user.id }
+      );
+
+      if (allowanceError) {
+        console.error('Allowance check error:', allowanceError);
+      } else if (!allowance.allowed) {
+        return new Response(
+          JSON.stringify({
+            error: 'daily_limit_reached',
+            message: `You've reached your daily limit of ${allowance.daily_limit} notes. Subscription plans are coming soon!`,
+            daily_count: allowance.daily_count,
+            daily_limit: allowance.daily_limit,
+          }),
+          { status: 429, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+    }
+
+    // transcribe_only mode: run Whisper, return transcription, skip LLM
+    if (processingMode === 'transcribe_only') {
+      const audioFile = formData.get('audio') as File | null;
+      if (!audioFile) {
+        return new Response(
+          JSON.stringify({ error: 'audio file is required for transcribe_only mode' }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+      if (audioFile.size > MAX_AUDIO_SIZE) {
+        return new Response(
+          JSON.stringify({ error: 'Audio file too large' }),
+          { status: 413, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+      const transcription = await transcribeAudio(audioFile);
       return new Response(
-        JSON.stringify({
-          error: 'daily_limit_reached',
-          message: `You've reached your daily limit of ${allowance.daily_limit} notes. Subscription plans are coming soon!`,
-          daily_count: allowance.daily_count,
-          daily_limit: allowance.daily_limit,
-        }),
-        { status: 429, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        JSON.stringify({ transcription }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
 
-    // Parse multipart form data
-    const formData = await req.formData();
+    // format_only mode: skip Whisper, format raw_transcription with LLM
+    if (processingMode === 'format_only') {
+      const rawTranscription = formData.get('raw_transcription') as string | null;
+      if (!rawTranscription || rawTranscription.trim().length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'raw_transcription is required for format_only mode' }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+
+      const fmtFormatType = (formData.get('format_type') as string) ?? 'bullet_list';
+      if (!VALID_FORMATS.includes(fmtFormatType)) {
+        return new Response(
+          JSON.stringify({ error: `Invalid format_type: ${fmtFormatType}` }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+
+      const fmtCustomExample = formData.get('custom_example') as string | null;
+      const fmtCustomInstructions = formData.get('custom_instructions') as string | null;
+      const fmtAutotaggingEnabled = formData.get('autotagging_enabled') === 'true';
+      const fmtUserTagsRaw = formData.get('user_tags') as string | null;
+      let fmtUserTags: string[] = [];
+      if (fmtUserTagsRaw) {
+        try { fmtUserTags = JSON.parse(fmtUserTagsRaw) as string[]; } catch { fmtUserTags = []; }
+      }
+
+      const fmtSafeExample = fmtCustomExample ? fmtCustomExample.slice(0, MAX_CUSTOM_EXAMPLE_LENGTH) : null;
+      const fmtSafeInstructions = fmtCustomInstructions ? fmtCustomInstructions.slice(0, MAX_CUSTOM_INSTRUCTIONS_LENGTH) : null;
+
+      const formatted = await formatTranscription(
+        rawTranscription,
+        fmtFormatType,
+        fmtSafeExample || undefined,
+        fmtSafeInstructions || undefined
+      );
+
+      let fmtSuggestedTags: string[] = [];
+      if (fmtAutotaggingEnabled && fmtUserTags.length > 0) {
+        fmtSuggestedTags = await suggestTags(formatted.content, fmtUserTags);
+      }
+
+      return new Response(
+        JSON.stringify({
+          transcription: rawTranscription,
+          formatted_text: formatted.content,
+          title: formatted.title,
+          ...(fmtAutotaggingEnabled && fmtSuggestedTags.length > 0 ? { suggested_tags: fmtSuggestedTags } : {}),
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    // processingMode === 'full': fall through to existing code (unchanged)
     const audioFile = formData.get('audio') as File | null;
     const formatType = formData.get('format_type') as string | null;
     const customExample = formData.get('custom_example') as string | null;

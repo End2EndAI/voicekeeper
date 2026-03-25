@@ -188,9 +188,9 @@ sprints:
           - "GPT errors fall back to raw transcription"
 
       - id: E4-S3
-        title: "Implement Client Processing Service"
+        title: "Auto-Advance Mode in RecordingDetail"
         epic: E4
-        status: not_started
+        status: done
         priority: must_have
         points: 2
         dependencies:

@@ -56,6 +56,10 @@ export default function HomeScreen() {
     router.push('/settings');
   };
 
+  const handleRecordings = () => {
+    router.push('/recordings');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -70,7 +74,18 @@ export default function HomeScreen() {
               : 'No notes yet'}
           </Text>
         </View>
-        <Pressable
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={handleRecordings}
+            style={({ pressed }) => [
+              styles.headerActionButton,
+              pressed && { opacity: 0.6 },
+            ]}
+            accessibilityLabel="Recordings"
+          >
+            <Text style={styles.recordingsButtonText}>Recordings</Text>
+          </Pressable>
+          <Pressable
           onPress={handleSettings}
           style={({ pressed }) => [
             styles.settingsButton,
@@ -84,6 +99,7 @@ export default function HomeScreen() {
             <View style={[styles.gearDot, styles.gearDot3]} />
           </View>
         </Pressable>
+        </View>
       </View>
 
       <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
@@ -142,6 +158,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textTertiary,
     marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerActionButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    ...Colors.shadow.sm,
+  },
+  recordingsButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
   },
   settingsButton: {
     width: 44,

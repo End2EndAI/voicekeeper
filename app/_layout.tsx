@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { PreferencesProvider } from '../contexts/PreferencesContext';
 import { NotesProvider } from '../contexts/NotesContext';
 import { TagsProvider } from '../contexts/TagsContext';
+import { RecordingsProvider } from '../contexts/RecordingsContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '../constants/colors';
 
@@ -75,8 +76,16 @@ function RootLayoutNav() {
           options={{ title: 'Note', headerShown: false }}
         />
         <Stack.Screen
+          name="recording/[id]"
+          options={{ title: 'Recording', headerShown: false }}
+        />
+        <Stack.Screen
           name="settings"
           options={{ title: 'Settings', headerShown: false }}
+        />
+        <Stack.Screen
+          name="recordings"
+          options={{ title: 'Recordings', headerShown: false }}
         />
         <Stack.Screen
           name="archive"
@@ -97,7 +106,9 @@ export default function RootLayout() {
       <PreferencesProvider>
         <NotesProvider>
           <TagsProvider>
-            <RootLayoutNav />
+            <RecordingsProvider>
+              <RootLayoutNav />
+            </RecordingsProvider>
           </TagsProvider>
         </NotesProvider>
       </PreferencesProvider>

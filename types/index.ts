@@ -1,5 +1,27 @@
 export type FormatType = 'bullet_list' | 'paragraph' | 'action_items' | 'meeting_notes' | 'custom';
 
+export type RecordingStatus =
+  | 'pending'       // audio saved locally, not yet transcribed
+  | 'transcribing'  // transcription API call in progress
+  | 'transcribed'   // rawTranscription populated
+  | 'formatting'    // formatting API call in progress
+  | 'formatted'     // formattedTitle + formattedText populated
+  | 'saved';        // note created in Supabase, noteId populated
+
+export interface Recording {
+  id: string;                  // uuid v4, generated on device
+  localUri: string;            // absolute path in documentDirectory/recordings/
+  duration: number;            // milliseconds
+  createdAt: string;           // ISO 8601 timestamp
+  status: RecordingStatus;
+  rawTranscription?: string;   // set after Transcribe step
+  formattedTitle?: string;     // set after Format step
+  formattedText?: string;      // set after Format step
+  formatType?: FormatType;     // set when Format is triggered
+  suggestedTags?: string[];    // set after Format step (autotagging)
+  noteId?: string;             // Supabase note id once saved
+}
+
 export interface Note {
   id: string;
   user_id: string;
@@ -11,6 +33,7 @@ export interface Note {
   updated_at: string;
   archived_at?: string | null;
   deleted_at?: string | null;
+  audio_uri?: string;
 }
 
 export interface UserPreferences {
@@ -46,6 +69,7 @@ export interface CreateNoteInput {
   formatted_text: string;
   raw_transcription: string;
   format_type: FormatType;
+  audio_uri?: string;
 }
 
 export interface UpdateNoteInput {

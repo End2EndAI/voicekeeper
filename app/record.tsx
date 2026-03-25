@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,14 @@ import { AudioWaveform } from '../components/AudioWaveform';
 import { Colors } from '../constants/colors';
 import { MAX_RECORDING_DURATION_MS } from '../constants/formats';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useRecordings } from '../contexts/RecordingsContext';
 import { showAlert } from '../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RecordScreen() {
   const router = useRouter();
   const { defaultFormat, customExample, customInstructions } = usePreferences();
+  const { saveRecording } = useRecordings();
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,15 +37,11 @@ export default function RecordScreen() {
   const rawMetering = recorderState.metering ?? -60;
   const metering = Math.min(1, Math.max(0, (rawMetering + 60) / 60));
 
+  const stoppingRef = useRef(false);
+
   useEffect(() => {
     checkPermission();
   }, []);
-
-  useEffect(() => {
-    if (isRecording && duration >= MAX_RECORDING_DURATION_MS) {
-      handleStopRecording();
-    }
-  }, [duration, isRecording]);
 
   const checkPermission = async () => {
     const { granted } = await requestRecordingPermissionsAsync();
@@ -77,7 +75,8 @@ export default function RecordScreen() {
   };
 
   const handleStopRecording = useCallback(async () => {
-    if (!recorderState.isRecording) return;
+    if (!recorderState.isRecording || stoppingRef.current) return;
+    stoppingRef.current = true;
 
     try {
       await recorder.stop();
@@ -85,6 +84,7 @@ export default function RecordScreen() {
 
       if (!uri) {
         setError('Recording failed. Please try again.');
+        stoppingRef.current = false;
         return;
       }
 
@@ -93,14 +93,16 @@ export default function RecordScreen() {
           'Custom Template Missing',
           'Please set a custom template in Settings before using the Custom format.'
         );
+        stoppingRef.current = false;
         router.back();
         return;
       }
 
+      const recording = await saveRecording(uri, duration);
       router.replace({
-        pathname: '/preview',
+        pathname: `/recording/${recording.id}`,
         params: {
-          audioUri: uri,
+          autoAdvance: 'true',
           formatType: defaultFormat,
           ...(defaultFormat === 'custom' && customExample ? { customExample } : {}),
           ...(customInstructions ? { customInstructions } : {}),
@@ -109,8 +111,15 @@ export default function RecordScreen() {
     } catch (err: any) {
       setError('Failed to stop recording. Please try again.');
       console.error('Recording stop error:', err);
+      stoppingRef.current = false;
     }
-  }, [recorder, recorderState.isRecording, defaultFormat, customExample, customInstructions, router]);
+  }, [recorder, recorderState.isRecording, duration, defaultFormat, customExample, customInstructions, saveRecording, router]);
+
+  useEffect(() => {
+    if (isRecording && duration >= MAX_RECORDING_DURATION_MS) {
+      handleStopRecording();
+    }
+  }, [duration, isRecording, handleStopRecording]);
 
   const handleCancel = async () => {
     if (recorderState.isRecording) {
