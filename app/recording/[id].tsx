@@ -323,7 +323,7 @@ export default function RecordingDetailScreen() {
                 style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
                 onPress={() => setShowFormatPicker(true)}
               >
-                <Text style={styles.primaryButtonText}>Format as {selectedFormat.replace('_', ' ')}</Text>
+                <Text style={styles.primaryButtonText}>Format…</Text>
               </Pressable>
             </>
           )}
@@ -384,7 +384,7 @@ export default function RecordingDetailScreen() {
         {/* Format picker (inline) */}
         {showFormatPicker && (
           <View style={styles.formatPicker}>
-            <Text style={styles.formatPickerTitle}>Choose Format</Text>
+            <Text style={styles.formatPickerTitle}>Format as…</Text>
             {FORMAT_OPTIONS.map((opt) => (
               <Pressable
                 key={opt.value}

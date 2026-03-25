@@ -84,6 +84,10 @@ function RootLayoutNav() {
           options={{ title: 'Settings', headerShown: false }}
         />
         <Stack.Screen
+          name="recordings"
+          options={{ title: 'Recordings', headerShown: false }}
+        />
+        <Stack.Screen
           name="archive"
           options={{ title: 'Archive', headerShown: false }}
         />
