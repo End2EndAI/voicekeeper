@@ -120,6 +120,7 @@ export default function NoteDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(note?.title ?? '');
   const [editText, setEditText] = useState(note?.formatted_text ?? '');
+  const [editFormatType, setEditFormatType] = useState<FormatType>(note?.format_type ?? 'paragraph');
   const [saving, setSaving] = useState(false);
   const titleInputRef = useRef<TextInput>(null);
 
@@ -168,6 +169,7 @@ export default function NoteDetailScreen() {
       await updateNote(note.id, {
         title: editTitle,
         formatted_text: editText,
+        format_type: editFormatType,
       });
       setIsEditing(false);
     } catch (err: unknown) {
@@ -210,6 +212,7 @@ export default function NoteDetailScreen() {
   const handleCancelEdit = () => {
     setEditTitle(note.title);
     setEditText(note.formatted_text);
+    setEditFormatType(note.format_type);
     setIsEditing(false);
     setShowFormatPicker(false);
     setReformatInstructions('');
@@ -228,6 +231,7 @@ export default function NoteDetailScreen() {
       );
       setEditTitle(result.title);
       setEditText(result.formatted_text);
+      setEditFormatType(formatType);
       setShowFormatPicker(false);
       setReformatInstructions('');
       setSelectedFormat(null);
@@ -321,6 +325,7 @@ export default function NoteDetailScreen() {
                 onPress={() => {
                   setEditTitle(note.title);
                   setEditText(note.formatted_text);
+                  setEditFormatType(note.format_type);
                   setIsEditing(true);
                 }}
                 style={({ pressed }) => [

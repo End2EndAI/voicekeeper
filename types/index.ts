@@ -79,6 +79,7 @@ export interface CreateNoteInput {
 export interface UpdateNoteInput {
   title?: string;
   formatted_text?: string;
+  format_type?: FormatType;
 }
 
 export interface Tag {
