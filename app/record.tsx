@@ -43,12 +43,6 @@ export default function RecordScreen() {
     checkPermission();
   }, []);
 
-  useEffect(() => {
-    if (isRecording && duration >= MAX_RECORDING_DURATION_MS) {
-      handleStopRecording();
-    }
-  }, [duration, isRecording, handleStopRecording]);
-
   const checkPermission = async () => {
     const { granted } = await requestRecordingPermissionsAsync();
     setPermissionGranted(granted);
@@ -120,6 +114,12 @@ export default function RecordScreen() {
       stoppingRef.current = false;
     }
   }, [recorder, recorderState.isRecording, duration, defaultFormat, customExample, customInstructions, saveRecording, router]);
+
+  useEffect(() => {
+    if (isRecording && duration >= MAX_RECORDING_DURATION_MS) {
+      handleStopRecording();
+    }
+  }, [duration, isRecording, handleStopRecording]);
 
   const handleCancel = async () => {
     if (recorderState.isRecording) {
