@@ -16,6 +16,7 @@ interface PreferencesState {
   customExample: string;
   customInstructions: string;
   autotaggingEnabled: boolean;
+  defaultTagId: string | null;
   isAdmin: boolean;
   tier: 'free' | 'unlimited';
   loading: boolean;
@@ -26,6 +27,7 @@ interface PreferencesContextType extends PreferencesState {
   setCustomExample: (example: string) => Promise<void>;
   setCustomInstructions: (instructions: string) => Promise<void>;
   setAutotaggingEnabled: (enabled: boolean) => Promise<void>;
+  setDefaultTagId: (tagId: string | null) => Promise<void>;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(
@@ -41,6 +43,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     customExample: '',
     customInstructions: '',
     autotaggingEnabled: false,
+    defaultTagId: null,
     isAdmin: false,
     tier: 'free',
     loading: true,
@@ -50,7 +53,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     if (session) {
       loadPreferences();
     } else {
-      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', autotaggingEnabled: false, isAdmin: false, tier: 'free', loading: false });
+      setState({ defaultFormat: DEFAULT_FORMAT, customExample: '', customInstructions: '', autotaggingEnabled: false, defaultTagId: null, isAdmin: false, tier: 'free', loading: false });
     }
   }, [session]);
 
@@ -62,6 +65,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
         customExample: prefs?.custom_example ?? '',
         customInstructions: prefs?.custom_instructions ?? '',
         autotaggingEnabled: prefs?.autotagging_enabled ?? false,
+        defaultTagId: prefs?.default_tag_id ?? null,
         isAdmin: prefs?.is_admin ?? false,
         tier: prefs?.tier ?? 'free',
         loading: false,
@@ -116,6 +120,17 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [state.autotaggingEnabled]);
 
+  const setDefaultTagId = useCallback(async (tagId: string | null) => {
+    const previous = state.defaultTagId;
+    setState((prev) => ({ ...prev, defaultTagId: tagId }));
+    try {
+      await preferencesService.setDefaultTagId(tagId);
+    } catch (error) {
+      setState((prev) => ({ ...prev, defaultTagId: previous }));
+      throw error;
+    }
+  }, [state.defaultTagId]);
+
   return (
     <PreferencesContext.Provider
       value={{
@@ -124,6 +139,7 @@ export const PreferencesProvider: React.FC<{ children: ReactNode }> = ({
         setCustomExample,
         setCustomInstructions,
         setAutotaggingEnabled,
+        setDefaultTagId,
       }}
     >
       {children}

@@ -7,7 +7,7 @@ import React, {
   useMemo,
   ReactNode,
 } from 'react';
-import { Note, CreateNoteInput, UpdateNoteInput } from '../types';
+import { Note, CreateNoteInput, UpdateNoteInput, NoteSort } from '../types';
 import * as notesService from '../services/notes';
 import { useAuth } from './AuthContext';
 
@@ -15,6 +15,7 @@ interface NotesState {
   notes: Note[];
   loading: boolean;
   searchQuery: string;
+  sort: NoteSort;
 }
 
 interface NotesContextType extends NotesState {
@@ -29,6 +30,7 @@ interface NotesContextType extends NotesState {
   restoreNote: (id: string) => Promise<void>;
   deleteNotePermanently: (id: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
+  setSort: (sort: NoteSort) => void;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
@@ -41,24 +43,26 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
     notes: [],
     loading: false,
     searchQuery: '',
+    sort: 'date_desc',
   });
 
   const fetchNotes = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true }));
     try {
-      const notes = await notesService.fetchNotes();
+      const notes = await notesService.fetchNotes(state.sort);
       setState((prev) => ({ ...prev, notes, loading: false }));
     } catch (error) {
       console.error('Failed to fetch notes:', error);
       setState((prev) => ({ ...prev, loading: false }));
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.sort]);
 
   useEffect(() => {
     if (session) {
       fetchNotes();
     } else {
-      setState({ notes: [], loading: false, searchQuery: '' });
+      setState({ notes: [], loading: false, searchQuery: '', sort: 'date_desc' });
     }
   }, [session, fetchNotes]);
 
@@ -153,6 +157,10 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
     setState((prev) => ({ ...prev, searchQuery: query }));
   }, []);
 
+  const setSort = useCallback((sort: NoteSort) => {
+    setState((prev) => ({ ...prev, sort }));
+  }, []);
+
   const filteredNotes = useMemo(() => {
     if (!state.searchQuery.trim()) return state.notes;
     const q = state.searchQuery.toLowerCase();
@@ -179,6 +187,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
         restoreNote,
         deleteNotePermanently,
         setSearchQuery,
+        setSort,
       }}
     >
       {children}

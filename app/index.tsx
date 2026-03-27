@@ -1,27 +1,46 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Pressable, Image, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useNotes } from '../contexts/NotesContext';
 import { useTags } from '../contexts/TagsContext';
+import { usePreferences } from '../contexts/PreferencesContext';
 import { NoteGrid } from '../components/NoteGrid';
 import { SearchBar } from '../components/SearchBar';
 import { RecordButton } from '../components/RecordButton';
 import { TagFilterBar } from '../components/TagFilterBar';
 import { Colors } from '../constants/colors';
-import { Note } from '../types';
+import { Note, NoteSort } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as tagsService from '../services/tags';
 
+const SORT_OPTIONS: { value: NoteSort; label: string }[] = [
+  { value: 'date_desc', label: 'Newest first' },
+  { value: 'date_asc', label: 'Oldest first' },
+  { value: 'title_asc', label: 'Title A→Z' },
+  { value: 'title_desc', label: 'Title Z→A' },
+];
+
 export default function HomeScreen() {
   const router = useRouter();
-  const { filteredNotes, loading, searchQuery, setSearchQuery, fetchNotes } =
+  const { filteredNotes, loading, searchQuery, setSearchQuery, fetchNotes, sort, setSort } =
     useNotes();
   const { tags, refreshNoteTagsMap } = useTags();
+  const { defaultTagId } = usePreferences();
 
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [tagNoteIds, setTagNoteIds] = useState<string[] | null>(null);
+  const [showSortPicker, setShowSortPicker] = useState(false);
 
-  const handleTagSelect = async (tagId: string | null) => {
+  // Apply default tag filter on first load
+  useEffect(() => {
+    if (defaultTagId && tags.length > 0) {
+      handleTagSelect(defaultTagId);
+    }
+  // Only run once when tags become available
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultTagId, tags.length > 0]);
+
+  const handleTagSelect = useCallback(async (tagId: string | null) => {
     setSelectedTagId(tagId);
     if (tagId === null) {
       setTagNoteIds(null);
@@ -33,6 +52,11 @@ export default function HomeScreen() {
         setTagNoteIds([]);
       }
     }
+  }, []);
+
+  const handleSortChange = (newSort: NoteSort) => {
+    setSort(newSort);
+    setShowSortPicker(false);
   };
 
   const displayedNotes = useMemo(() => {
@@ -64,6 +88,8 @@ export default function HomeScreen() {
     router.push('/recordings');
   };
 
+  const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label ?? 'Sort';
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -79,6 +105,16 @@ export default function HomeScreen() {
           </Text>
         </View>
         <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => setShowSortPicker(true)}
+            style={({ pressed }) => [
+              styles.headerActionButton,
+              pressed && { opacity: 0.6 },
+            ]}
+            accessibilityLabel="Sort notes"
+          >
+            <Text style={styles.sortButtonText}>↕ {currentSortLabel}</Text>
+          </Pressable>
           <Pressable
             onPress={handleRecordings}
             style={({ pressed }) => [
@@ -125,6 +161,36 @@ export default function HomeScreen() {
       </View>
 
       <RecordButton onPress={handleRecord} onTextNotePress={handleNewTextNote} />
+
+      {/* Sort picker modal */}
+      <Modal
+        visible={showSortPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSortPicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowSortPicker(false)}>
+          <View style={styles.sortSheet}>
+            <Text style={styles.sortSheetTitle}>Sort notes</Text>
+            {SORT_OPTIONS.map((opt) => (
+              <Pressable
+                key={opt.value}
+                style={({ pressed }) => [
+                  styles.sortOption,
+                  sort === opt.value && styles.sortOptionActive,
+                  pressed && { opacity: 0.7 },
+                ]}
+                onPress={() => handleSortChange(opt.value)}
+              >
+                <Text style={[styles.sortOptionText, sort === opt.value && styles.sortOptionTextActive]}>
+                  {opt.label}
+                </Text>
+                {sort === opt.value && <Text style={styles.sortCheckmark}>✓</Text>}
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -175,10 +241,57 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     ...Colors.shadow.sm,
   },
+  sortButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
   recordingsButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sortSheet: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  sortSheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 16,
+  },
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  sortOptionActive: {
+    backgroundColor: Colors.primarySubtle,
+  },
+  sortOptionText: {
+    fontSize: 16,
+    color: Colors.text,
+  },
+  sortOptionTextActive: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  sortCheckmark: {
+    fontSize: 16,
+    color: Colors.primary,
+    fontWeight: '700',
   },
   settingsButton: {
     width: 44,
