@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.voicekeeper.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "VoiceKeeper needs microphone access to record voice notes."
+        "NSMicrophoneUsageDescription": "VoiceKeeper needs microphone access to record voice notes.",
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {
@@ -29,7 +30,9 @@
       "permissions": [
         "RECORD_AUDIO",
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE"
       ]
     },
     "web": {

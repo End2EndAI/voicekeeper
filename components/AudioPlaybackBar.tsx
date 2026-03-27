@@ -8,11 +8,17 @@ import { Colors } from '../constants/colors';
 
 interface AudioPlaybackBarProps {
   localUri: string;
+  fileSizeBytes?: number;
   onPlaybackError?: (err: Error) => void;
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 // Web-only audio player using HTMLAudioElement
-function WebAudioPlaybackBar({ localUri }: AudioPlaybackBarProps) {
+function WebAudioPlaybackBar({ localUri, fileSizeBytes }: AudioPlaybackBarProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -61,6 +67,9 @@ function WebAudioPlaybackBar({ localUri }: AudioPlaybackBarProps) {
         </View>
         <View style={styles.timeRow}>
           <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+          {fileSizeBytes != null && (
+            <Text style={styles.timeText}>{formatFileSize(fileSizeBytes)}</Text>
+          )}
           <Text style={styles.timeText}>{formatTime(duration)}</Text>
         </View>
       </View>
@@ -68,16 +77,16 @@ function WebAudioPlaybackBar({ localUri }: AudioPlaybackBarProps) {
   );
 }
 
-export function AudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarProps) {
+export function AudioPlaybackBar({ localUri, fileSizeBytes, onPlaybackError }: AudioPlaybackBarProps) {
   // On web, use the HTML Audio API directly — blob URLs don't work with expo-file-system
   if (Platform.OS === 'web') {
-    return <WebAudioPlaybackBar localUri={localUri} onPlaybackError={onPlaybackError} />;
+    return <WebAudioPlaybackBar localUri={localUri} fileSizeBytes={fileSizeBytes} onPlaybackError={onPlaybackError} />;
   }
 
-  return <NativeAudioPlaybackBar localUri={localUri} onPlaybackError={onPlaybackError} />;
+  return <NativeAudioPlaybackBar localUri={localUri} fileSizeBytes={fileSizeBytes} onPlaybackError={onPlaybackError} />;
 }
 
-function NativeAudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarProps) {
+function NativeAudioPlaybackBar({ localUri, fileSizeBytes, onPlaybackError }: AudioPlaybackBarProps) {
   const [fileAvailable, setFileAvailable] = useState<boolean | null>(null);
   const [seekValue, setSeekValue] = useState(0);
 
@@ -161,6 +170,9 @@ function NativeAudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarP
         {/* Time labels */}
         <View style={styles.timeRow}>
           <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+          {fileSizeBytes != null && (
+            <Text style={styles.timeText}>{formatFileSize(fileSizeBytes)}</Text>
+          )}
           <Text style={styles.timeText}>{formatTime(duration)}</Text>
         </View>
       </View>

@@ -36,16 +36,21 @@ export async function saveRecording(
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   let localUri: string;
 
+  let fileSizeBytes: number | undefined;
+
   if (Platform.OS === 'web') {
     // On web, fetch the blob URL and create a persistent object URL
     const response = await fetch(tempUri);
     const blob = await response.blob();
+    fileSizeBytes = blob.size;
     localUri = URL.createObjectURL(blob);
   } else {
     await ensureRecordingsDir();
     const ext = 'm4a';
     const destPath = `${RECORDINGS_DIR}recording-${id}.${ext}`;
     await FileSystem.copyAsync({ from: tempUri, to: destPath });
+    const info = await FileSystem.getInfoAsync(destPath);
+    fileSizeBytes = info.exists ? info.size : undefined;
     localUri = destPath;
   }
 
@@ -53,6 +58,7 @@ export async function saveRecording(
     id,
     localUri,
     duration: durationMs,
+    fileSizeBytes,
     createdAt: new Date().toISOString(),
     status: 'pending',
   };
