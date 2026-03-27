@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Share,
   ActivityIndicator,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
@@ -27,7 +30,18 @@ import { AudioPlaybackBar } from '../../components/AudioPlaybackBar';
 
 // Parses action_items markdown into a structured list with tappable checkboxes.
 // Toggling a checkbox updates the underlying markdown text and persists via onTextChange.
-function ActionItemsList({ text, onTextChange }: { text: string; onTextChange?: (updated: string) => void }) {
+// When allowAdd is true, shows an "+ Add item" button at the bottom.
+function ActionItemsList({
+  text,
+  onTextChange,
+  allowAdd = false,
+}: {
+  text: string;
+  onTextChange?: (updated: string) => void;
+  allowAdd?: boolean;
+}) {
+  const [newItemText, setNewItemText] = useState('');
+  const [showInput, setShowInput] = useState(false);
   const lines = text.split('\n');
 
   const toggle = (lineIndex: number) => {
@@ -38,6 +52,16 @@ function ActionItemsList({ text, onTextChange }: { text: string; onTextChange?: 
       return line;
     }).join('\n');
     onTextChange?.(updated);
+  };
+
+  const addItem = () => {
+    const trimmed = newItemText.trim();
+    if (!trimmed) { setShowInput(false); return; }
+    const newLine = `- [ ] ${trimmed}`;
+    const updated = text.trimEnd() + '\n' + newLine;
+    onTextChange?.(updated);
+    setNewItemText('');
+    setShowInput(false);
   };
 
   return (
@@ -62,6 +86,33 @@ function ActionItemsList({ text, onTextChange }: { text: string; onTextChange?: 
         if (!line.trim()) return null;
         return <Markdown key={i} style={markdownStyles}>{line}</Markdown>;
       })}
+      {allowAdd && (
+        showInput ? (
+          <View style={actionStyles.addRow}>
+            <TextInput
+              style={actionStyles.addInput}
+              value={newItemText}
+              onChangeText={setNewItemText}
+              placeholder="New item…"
+              placeholderTextColor={Colors.textTertiary}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={addItem}
+              blurOnSubmit={false}
+            />
+            <Pressable onPress={addItem} style={actionStyles.addConfirm}>
+              <Text style={actionStyles.addConfirmText}>Add</Text>
+            </Pressable>
+            <Pressable onPress={() => { setShowInput(false); setNewItemText(''); }} style={actionStyles.addCancel}>
+              <Text style={actionStyles.addCancelText}>✕</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable style={actionStyles.addButton} onPress={() => setShowInput(true)}>
+            <Text style={actionStyles.addButtonText}>+ Add item</Text>
+          </Pressable>
+        )
+      )}
     </View>
   );
 }
@@ -105,6 +156,53 @@ const actionStyles = StyleSheet.create({
     color: Colors.textTertiary,
     textDecorationLine: 'line-through',
   },
+  addButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    alignSelf: 'flex-start',
+  },
+  addButtonText: {
+    fontSize: 15,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  addInput: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+  },
+  addConfirm: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+  },
+  addConfirmText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  addCancel: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  addCancelText: {
+    color: Colors.textTertiary,
+    fontSize: 16,
+  },
 });
 
 export default function NoteDetailScreen() {
@@ -117,23 +215,41 @@ export default function NoteDetailScreen() {
 
   const note = useMemo(() => notes.find((n) => n.id === id), [notes, id]);
 
-  const [isEditing, setIsEditing] = useState(false);
+  // Edit mode is active by default but we do NOT auto-focus the keyboard (#9)
+  const [isEditing, setIsEditing] = useState(true);
   const [editTitle, setEditTitle] = useState(note?.title ?? '');
   const [editText, setEditText] = useState(note?.formatted_text ?? '');
   const [editFormatType, setEditFormatType] = useState<FormatType>(note?.format_type ?? 'paragraph');
   const [saving, setSaving] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
   const titleInputRef = useRef<TextInput>(null);
+  const contentInputRef = useRef<TextInput>(null);
 
   const [showFormatPicker, setShowFormatPicker] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<FormatType | null>(null);
   const [reformatInstructions, setReformatInstructions] = useState('');
   const [reformatting, setReformatting] = useState(false);
 
+  // Sync edit state when note loads (handles navigation to a different note)
   useEffect(() => {
-    if (isEditing) {
-      setTimeout(() => titleInputRef.current?.focus(), 50);
+    if (note) {
+      setEditTitle(note.title);
+      setEditText(note.formatted_text);
+      setEditFormatType(note.format_type);
     }
-  }, [isEditing]);
+  }, [note?.id]);
+
+  const handleShare = useCallback(async () => {
+    if (!note) return;
+    try {
+      await Share.share({
+        title: note.title,
+        message: `${note.title}\n\n${note.formatted_text}`,
+      });
+    } catch {
+      // User dismissed share sheet — not an error
+    }
+  }, [note]);
 
   const [noteTags, setNoteTags] = useState<Tag[]>([]);
   const [tagPickerVisible, setTagPickerVisible] = useState(false);
@@ -217,6 +333,9 @@ export default function NoteDetailScreen() {
     setShowFormatPicker(false);
     setReformatInstructions('');
     setSelectedFormat(null);
+    // Dismiss keyboard
+    titleInputRef.current?.blur();
+    contentInputRef.current?.blur();
   };
 
   const handleReformat = async (formatType: FormatType) => {
@@ -272,6 +391,11 @@ export default function NoteDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
       <View style={styles.topBar}>
         <Pressable
           onPress={() => router.back()}
@@ -322,12 +446,16 @@ export default function NoteDetailScreen() {
           ) : (
             <>
               <Pressable
-                onPress={() => {
-                  setEditTitle(note.title);
-                  setEditText(note.formatted_text);
-                  setEditFormatType(note.format_type);
-                  setIsEditing(true);
-                }}
+                onPress={handleShare}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <Text style={styles.shareText}>Share</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setIsEditing(true)}
                 style={({ pressed }) => [
                   styles.actionButton,
                   pressed && { opacity: 0.6 },
@@ -359,8 +487,10 @@ export default function NoteDetailScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollContent}
         contentContainerStyle={styles.scrollContentContainer}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.meta}>
           <FormatBadge formatType={note.format_type} size="medium" />
@@ -380,8 +510,11 @@ export default function NoteDetailScreen() {
               placeholderTextColor={Colors.textTertiary}
               selectTextOnFocus
               returnKeyType="next"
+              multiline
+              onSubmitEditing={() => contentInputRef.current?.focus()}
             />
             <TextInput
+              ref={contentInputRef}
               style={styles.textInput}
               value={editText}
               onChangeText={setEditText}
@@ -389,6 +522,7 @@ export default function NoteDetailScreen() {
               placeholderTextColor={Colors.textTertiary}
               multiline
               textAlignVertical="top"
+              scrollEnabled={false}
             />
 
             {/* Inline format picker */}
@@ -447,6 +581,7 @@ export default function NoteDetailScreen() {
               <ActionItemsList
                 text={note.formatted_text}
                 onTextChange={(updated) => updateNote(note.id, { formatted_text: updated })}
+                allowAdd
               />
             ) : (
               <Markdown style={markdownStyles}>{note.formatted_text}</Markdown>
@@ -501,6 +636,7 @@ export default function NoteDetailScreen() {
         onToggle={handleToggleTag}
         onCreateTag={handleCreateTag}
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -565,6 +701,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   centered: {
     flex: 1,
@@ -633,6 +772,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  shareText: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '500',
+  },
   archiveText: {
     color: Colors.warning,
     fontSize: 16,
@@ -678,6 +822,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.primary,
     paddingBottom: 10,
     letterSpacing: -0.3,
+    lineHeight: 34,
   },
   textInput: {
     fontSize: 16,

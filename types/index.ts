@@ -1,5 +1,7 @@
 export type FormatType = 'bullet_list' | 'paragraph' | 'action_items' | 'meeting_notes' | 'custom';
 
+export type NoteSort = 'date_desc' | 'date_asc' | 'title_asc' | 'title_desc';
+
 export type RecordingStatus =
   | 'pending'       // audio saved locally, not yet transcribed
   | 'transcribing'  // transcription API call in progress
@@ -7,6 +9,11 @@ export type RecordingStatus =
   | 'formatting'    // formatting API call in progress
   | 'formatted'     // formattedTitle + formattedText populated
   | 'saved';        // note created in Supabase, noteId populated
+
+export interface UncertainTerm {
+  original: string;
+  suggestion: string | null;
+}
 
 export interface Recording {
   id: string;                  // uuid v4, generated on device
@@ -16,6 +23,7 @@ export interface Recording {
   createdAt: string;           // ISO 8601 timestamp
   status: RecordingStatus;
   rawTranscription?: string;   // set after Transcribe step
+  uncertainTerms?: UncertainTerm[]; // set after Transcribe step (acronym validation)
   formattedTitle?: string;     // set after Format step
   formattedText?: string;      // set after Format step
   formatType?: FormatType;     // set when Format is triggered
@@ -47,6 +55,7 @@ export interface UserPreferences {
   custom_example: string | null;
   custom_instructions: string | null;
   autotagging_enabled: boolean;
+  default_tag_id: string | null;
   updated_at: string;
   is_admin?: boolean;
 }
