@@ -59,13 +59,82 @@ Good title: "App to benchmark LLM providers" — Bad title: "Je veux créer une 
 Always respond in the same language as the transcription, unless the user instructs otherwise.
 Respond ONLY with a valid JSON object with exactly two fields: "title" (string) and "content" (string containing the formatted note in markdown).`;
 
-function buildSystemPrompt(formatType: string, customExample?: string, customInstructions?: string): string {
+async function detectUncertainTerms(
+  transcription: string
+): Promise<Array<{ original: string; suggestion: string | null }>> {
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-5-nano',
+        reasoning_effort: 'minimal',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Identify words or phrases in this transcription that are likely misrecognized by speech-to-text: acronyms, technical terms, proper nouns, brand names, or phonetically ambiguous words. Only flag terms with genuine uncertainty — not common words. For each uncertain term, provide the original as transcribed and your best suggestion (or null if you cannot guess). Return 0 to 5 terms maximum.',
+          },
+          { role: 'user', content: transcription },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'uncertain_terms',
+            schema: {
+              type: 'object',
+              properties: {
+                uncertain_terms: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      original: { type: 'string' },
+                      suggestion: { type: ['string', 'null'] },
+                    },
+                    required: ['original', 'suggestion'],
+                  },
+                  maxItems: 5,
+                },
+              },
+              required: ['uncertain_terms'],
+            },
+          },
+        },
+      }),
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    const parsed = JSON.parse(result.choices[0].message.content);
+    return parsed.uncertain_terms ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function buildSystemPrompt(
+  formatType: string,
+  customExample?: string,
+  customInstructions?: string,
+  validatedTerms?: Array<{ original_term: string; corrected_term: string }>
+): string {
   let prompt: string;
 
   if (formatType === 'custom' && customExample) {
     prompt = `Format the transcription following the exact same structure and style as this example note:\n\n---\n${customExample}\n---\n\nApply this structure to the new transcription. Reformulate the content to match the style — do not copy the transcription verbatim.\n\n${SHARED_SUFFIX}`;
   } else {
     prompt = `${SYSTEM_PROMPTS[formatType] || SYSTEM_PROMPTS['bullet_list']}\n\n${SHARED_SUFFIX}`;
+  }
+
+  // Inject validated term corrections so the LLM uses the right spellings
+  if (validatedTerms && validatedTerms.length > 0) {
+    const termsList = validatedTerms
+      .map((t) => `  - "${t.original_term}" → "${t.corrected_term}"`)
+      .join('\n');
+    prompt += `\n\nKnown term corrections (always use these exact spellings in your output):\n${termsList}`;
   }
 
   // Append user custom instructions if provided (applies to all formats)
@@ -111,9 +180,10 @@ async function formatTranscription(
   transcription: string,
   formatType: string,
   customExample?: string,
-  customInstructions?: string
+  customInstructions?: string,
+  validatedTerms?: Array<{ original_term: string; corrected_term: string }>
 ): Promise<{ title: string; content: string }> {
-  const systemPrompt = buildSystemPrompt(formatType, customExample, customInstructions);
+  const systemPrompt = buildSystemPrompt(formatType, customExample, customInstructions, validatedTerms);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -288,8 +358,9 @@ serve(async (req: Request) => {
         );
       }
       const transcription = await transcribeAudio(audioFile);
+      const uncertainTerms = await detectUncertainTerms(transcription);
       return new Response(
-        JSON.stringify({ transcription }),
+        JSON.stringify({ transcription, uncertain_terms: uncertainTerms }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
@@ -324,11 +395,18 @@ serve(async (req: Request) => {
       const fmtSafeExample = fmtCustomExample ? fmtCustomExample.slice(0, MAX_CUSTOM_EXAMPLE_LENGTH) : null;
       const fmtSafeInstructions = fmtCustomInstructions ? fmtCustomInstructions.slice(0, MAX_CUSTOM_INSTRUCTIONS_LENGTH) : null;
 
+      const fmtValidatedTermsRaw = formData.get('validated_terms') as string | null;
+      let fmtValidatedTerms: Array<{ original_term: string; corrected_term: string }> = [];
+      if (fmtValidatedTermsRaw) {
+        try { fmtValidatedTerms = JSON.parse(fmtValidatedTermsRaw); } catch { fmtValidatedTerms = []; }
+      }
+
       const formatted = await formatTranscription(
         rawTranscription,
         fmtFormatType,
         fmtSafeExample || undefined,
-        fmtSafeInstructions || undefined
+        fmtSafeInstructions || undefined,
+        fmtValidatedTerms.length > 0 ? fmtValidatedTerms : undefined
       );
 
       let fmtSuggestedTags: string[] = [];
