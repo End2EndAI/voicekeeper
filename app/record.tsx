@@ -11,6 +11,7 @@ import {
   useAudioRecorderState,
   RecordingPresets,
   requestRecordingPermissionsAsync,
+  setAudioModeAsync,
 } from 'expo-audio';
 import { AudioWaveform } from '../components/AudioWaveform';
 import { Colors } from '../constants/colors';
@@ -55,6 +56,7 @@ export default function RecordScreen() {
   const startRecordingWithPermission = async () => {
     try {
       setError(null);
+      await setAudioModeAsync({ allowsBackgroundRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
     } catch (err: any) {

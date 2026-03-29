@@ -277,7 +277,7 @@ export default function RecordingDetailScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <AudioPlaybackBar localUri={recording.localUri} />
+        <AudioPlaybackBar localUri={recording.localUri} fileSizeBytes={recording.fileSizeBytes} />
 
         {/* Status */}
         <View style={styles.statusRow}>

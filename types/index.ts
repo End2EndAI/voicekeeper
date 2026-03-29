@@ -12,6 +12,7 @@ export interface Recording {
   id: string;                  // uuid v4, generated on device
   localUri: string;            // absolute path in documentDirectory/recordings/
   duration: number;            // milliseconds
+  fileSizeBytes?: number;      // audio file size in bytes (used to check Whisper 25MB limit)
   createdAt: string;           // ISO 8601 timestamp
   status: RecordingStatus;
   rawTranscription?: string;   // set after Transcribe step

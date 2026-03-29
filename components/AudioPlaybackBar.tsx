@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, Platform,
+  View, Text, StyleSheet, Pressable, Platform, PanResponder,
 } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as FileSystem from 'expo-file-system';
@@ -8,15 +8,33 @@ import { Colors } from '../constants/colors';
 
 interface AudioPlaybackBarProps {
   localUri: string;
+  fileSizeBytes?: number;
   onPlaybackError?: (err: Error) => void;
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const formatTime = (seconds: number) => {
+  const s = Math.floor(seconds);
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+};
+
+const THUMB_SIZE = 12;
+const HIT_AREA_HEIGHT = 20;
+
 // Web-only audio player using HTMLAudioElement
-function WebAudioPlaybackBar({ localUri }: AudioPlaybackBarProps) {
+function WebAudioPlaybackBar({ localUri, fileSizeBytes }: AudioPlaybackBarProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [scrubPosition, setScrubPosition] = useState<number | null>(null);
+
+  const durationRef = useRef(0);
+  useEffect(() => { durationRef.current = duration; }, [duration]);
 
   useEffect(() => {
     const audio = new Audio(localUri);
@@ -39,12 +57,16 @@ function WebAudioPlaybackBar({ localUri }: AudioPlaybackBarProps) {
     }
   }, [isPlaying]);
 
-  const seekValue = duration > 0 ? currentTime / duration : 0;
+  const seekTo = useCallback((ratio: number) => {
+    const audio = audioRef.current;
+    if (!audio || durationRef.current <= 0) return;
+    audio.currentTime = ratio * durationRef.current;
+  }, []);
 
-  const formatTime = (seconds: number) => {
-    const s = Math.floor(seconds);
-    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-  };
+  const panResponder = useMemo(() => buildPanResponder(durationRef, seekTo, setScrubPosition), [seekTo]);
+
+  const seekValue = duration > 0 ? currentTime / duration : 0;
+  const displayValue = scrubPosition ?? seekValue;
 
   return (
     <View style={styles.container}>
@@ -56,11 +78,17 @@ function WebAudioPlaybackBar({ localUri }: AudioPlaybackBarProps) {
         <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶'}</Text>
       </Pressable>
       <View style={styles.trackContainer}>
-        <View style={styles.track}>
-          <View style={[styles.fill, { width: `${seekValue * 100}%` }]} />
+        <View style={styles.trackHitArea} {...panResponder.panHandlers}>
+          <View style={styles.track}>
+            <View style={[styles.fill, { width: `${displayValue * 100}%` as any }]} />
+          </View>
+          <View style={[styles.thumb, { left: `${displayValue * 100}%` as any }]} />
         </View>
         <View style={styles.timeRow}>
           <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+          {fileSizeBytes != null && (
+            <Text style={styles.timeText}>{formatFileSize(fileSizeBytes)}</Text>
+          )}
           <Text style={styles.timeText}>{formatTime(duration)}</Text>
         </View>
       </View>
@@ -68,25 +96,20 @@ function WebAudioPlaybackBar({ localUri }: AudioPlaybackBarProps) {
   );
 }
 
-export function AudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarProps) {
+export function AudioPlaybackBar({ localUri, fileSizeBytes, onPlaybackError }: AudioPlaybackBarProps) {
   // On web, use the HTML Audio API directly — blob URLs don't work with expo-file-system
   if (Platform.OS === 'web') {
-    return <WebAudioPlaybackBar localUri={localUri} onPlaybackError={onPlaybackError} />;
+    return <WebAudioPlaybackBar localUri={localUri} fileSizeBytes={fileSizeBytes} onPlaybackError={onPlaybackError} />;
   }
 
-  return <NativeAudioPlaybackBar localUri={localUri} onPlaybackError={onPlaybackError} />;
+  return <NativeAudioPlaybackBar localUri={localUri} fileSizeBytes={fileSizeBytes} onPlaybackError={onPlaybackError} />;
 }
 
-function NativeAudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarProps) {
+function NativeAudioPlaybackBar({ localUri, fileSizeBytes, onPlaybackError }: AudioPlaybackBarProps) {
   const [fileAvailable, setFileAvailable] = useState<boolean | null>(null);
-  const [seekValue, setSeekValue] = useState(0);
+  const [scrubPosition, setScrubPosition] = useState<number | null>(null);
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      // On web, FileSystem.getInfoAsync is unavailable; blob/object URLs are valid if they exist
-      setFileAvailable(!!localUri);
-      return;
-    }
     FileSystem.getInfoAsync(localUri)
       .then(info => {
         setFileAvailable(info.exists);
@@ -107,9 +130,8 @@ function NativeAudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarP
   const duration = status.duration ?? 0;
   const currentTime = status.currentTime ?? 0;
 
-  useEffect(() => {
-    setSeekValue(duration > 0 ? currentTime / duration : 0);
-  }, [currentTime, duration]);
+  const durationRef = useRef(0);
+  useEffect(() => { durationRef.current = duration; }, [duration]);
 
   const handlePlayPause = useCallback(() => {
     if (isPlaying) {
@@ -119,10 +141,15 @@ function NativeAudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarP
     }
   }, [isPlaying, player]);
 
-  const formatTime = (seconds: number) => {
-    const s = Math.floor(seconds);
-    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-  };
+  const seekTo = useCallback((ratio: number) => {
+    if (durationRef.current <= 0) return;
+    player.seekTo(ratio * durationRef.current);
+  }, [player]);
+
+  const panResponder = useMemo(() => buildPanResponder(durationRef, seekTo, setScrubPosition), [seekTo]);
+
+  const seekValue = duration > 0 ? currentTime / duration : 0;
+  const displayValue = scrubPosition ?? seekValue;
 
   if (fileAvailable === null) {
     return (
@@ -155,17 +182,58 @@ function NativeAudioPlaybackBar({ localUri, onPlaybackError }: AudioPlaybackBarP
 
       {/* Seek track */}
       <View style={styles.trackContainer}>
-        <View style={styles.track}>
-          <View style={[styles.fill, { width: `${seekValue * 100}%` }]} />
+        <View style={styles.trackHitArea} {...panResponder.panHandlers}>
+          <View style={styles.track}>
+            <View style={[styles.fill, { width: `${displayValue * 100}%` as any }]} />
+          </View>
+          <View style={[styles.thumb, { left: `${displayValue * 100}%` as any }]} />
         </View>
         {/* Time labels */}
         <View style={styles.timeRow}>
           <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+          {fileSizeBytes != null && (
+            <Text style={styles.timeText}>{formatFileSize(fileSizeBytes)}</Text>
+          )}
           <Text style={styles.timeText}>{formatTime(duration)}</Text>
         </View>
       </View>
     </View>
   );
+}
+
+/**
+ * Shared PanResponder factory for the seek bar.
+ * Uses refs so the gesture handler doesn't need to be recreated on every status update.
+ */
+function buildPanResponder(
+  durationRef: React.MutableRefObject<number>,
+  seekTo: (ratio: number) => void,
+  setScrubPosition: (v: number | null) => void,
+) {
+  const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+  let trackWidth = 0;
+
+  return PanResponder.create({
+    onStartShouldSetPanResponder: () => durationRef.current > 0,
+    onMoveShouldSetPanResponder: () => durationRef.current > 0,
+    onPanResponderGrant: (e) => {
+      trackWidth = e.nativeEvent.target
+        ? (e.nativeEvent as any).currentTarget?.offsetWidth ?? trackWidth
+        : trackWidth;
+      const ratio = clamp(e.nativeEvent.locationX / (trackWidth || 1), 0, 1);
+      setScrubPosition(ratio);
+    },
+    onPanResponderMove: (e) => {
+      const ratio = clamp(e.nativeEvent.locationX / (trackWidth || 1), 0, 1);
+      setScrubPosition(ratio);
+    },
+    onPanResponderRelease: (e) => {
+      const ratio = clamp(e.nativeEvent.locationX / (trackWidth || 1), 0, 1);
+      seekTo(ratio);
+      setScrubPosition(null);
+    },
+    onPanResponderTerminate: () => setScrubPosition(null),
+  });
 }
 
 const styles = StyleSheet.create({
@@ -196,6 +264,10 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  trackHitArea: {
+    height: HIT_AREA_HEIGHT,
+    justifyContent: 'center',
+  },
   track: {
     height: 4,
     backgroundColor: Colors.border,
@@ -206,6 +278,15 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: Colors.primary,
     borderRadius: 2,
+  },
+  thumb: {
+    position: 'absolute',
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
+    borderRadius: THUMB_SIZE / 2,
+    backgroundColor: Colors.primary,
+    top: (HIT_AREA_HEIGHT - THUMB_SIZE) / 2,
+    transform: [{ translateX: -THUMB_SIZE / 2 }],
   },
   timeRow: {
     flexDirection: 'row',
