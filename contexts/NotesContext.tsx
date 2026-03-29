@@ -7,9 +7,12 @@ import React, {
   useMemo,
   ReactNode,
 } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Note, CreateNoteInput, UpdateNoteInput, NoteSort } from '../types';
 import * as notesService from '../services/notes';
 import { useAuth } from './AuthContext';
+
+const SORT_KEY = '@voicekeeper/notes_sort';
 
 interface NotesState {
   notes: Note[];
@@ -45,6 +48,15 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
     searchQuery: '',
     sort: 'date_desc',
   });
+
+  // Restore persisted sort on mount
+  useEffect(() => {
+    AsyncStorage.getItem(SORT_KEY).then((saved) => {
+      if (saved) {
+        setState((prev) => ({ ...prev, sort: saved as NoteSort }));
+      }
+    }).catch(() => {});
+  }, []);
 
   const fetchNotes = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true }));
@@ -159,6 +171,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
 
   const setSort = useCallback((sort: NoteSort) => {
     setState((prev) => ({ ...prev, sort }));
+    AsyncStorage.setItem(SORT_KEY, sort).catch(() => {});
   }, []);
 
   const filteredNotes = useMemo(() => {

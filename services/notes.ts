@@ -10,17 +10,17 @@ export const fetchNotes = async (sort: NoteSort = 'date_desc'): Promise<Note[]> 
 
   switch (sort) {
     case 'date_asc':
-      query = query.order('created_at', { ascending: true });
+      query = query.order('created_at', { ascending: true }).order('id', { ascending: true });
       break;
     case 'title_asc':
-      query = query.order('title', { ascending: true });
+      query = query.order('title', { ascending: true }).order('id', { ascending: true });
       break;
     case 'title_desc':
-      query = query.order('title', { ascending: false });
+      query = query.order('title', { ascending: false }).order('id', { ascending: true });
       break;
     case 'date_desc':
     default:
-      query = query.order('created_at', { ascending: false });
+      query = query.order('created_at', { ascending: false }).order('id', { ascending: true });
   }
 
   const { data, error } = await query;

@@ -35,12 +35,19 @@ export const AcronymValidationModal: React.FC<Props> = ({
   const [entries, setEntries] = useState<ValidatedEntry[]>([]);
 
   useEffect(() => {
+    const seen = new Set<string>();
     setEntries(
-      terms.map((t) => ({
-        original: t.original,
-        corrected: t.suggestion ?? t.original,
-        skip: false,
-      }))
+      terms
+        .filter((t) => {
+          if (seen.has(t.original)) return false;
+          seen.add(t.original);
+          return true;
+        })
+        .map((t) => ({
+          original: t.original,
+          corrected: t.suggestion ?? t.original,
+          skip: false,
+        }))
     );
   }, [terms]);
 
