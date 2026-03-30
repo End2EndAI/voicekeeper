@@ -403,6 +403,22 @@ export default function SettingsScreen() {
               <Text style={styles.navLinkChevron}>›</Text>
             </View>
           </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.navLink,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={() => router.push('/acronyms')}
+          >
+            <View style={styles.navLinkContent}>
+              <Text style={styles.navLinkIcon}>🔤</Text>
+              <View style={styles.navLinkText}>
+                <Text style={styles.navLinkTitle}>Saved Terms</Text>
+                <Text style={styles.navLinkDesc}>Corrections reused in future transcriptions</Text>
+              </View>
+              <Text style={styles.navLinkChevron}>›</Text>
+            </View>
+          </Pressable>
         </View>
 
         {/* Autotagging */}

@@ -31,3 +31,19 @@ export const saveValidatedTerms = async (terms: ValidatedTerm[]): Promise<void> 
     .upsert(rows, { onConflict: 'user_id,original_term' });
   if (error) throw error;
 };
+
+export const deleteValidatedTerm = async (originalTerm: string): Promise<void> => {
+  const { error } = await supabase
+    .from('user_validated_terms')
+    .delete()
+    .eq('original_term', originalTerm);
+  if (error) throw error;
+};
+
+export const deleteAllValidatedTerms = async (): Promise<void> => {
+  const { error } = await supabase
+    .from('user_validated_terms')
+    .delete()
+    .neq('original_term', '');
+  if (error) throw error;
+};
