@@ -22,6 +22,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useRecordings } from '../contexts/RecordingsContext';
 import { showAlert } from '../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 export default function RecordScreen() {
   const router = useRouter();
@@ -45,6 +46,7 @@ export default function RecordScreen() {
 
   useEffect(() => {
     checkPermission();
+    return () => { deactivateKeepAwake(); };
   }, []);
 
   const checkPermission = async () => {
@@ -64,6 +66,7 @@ export default function RecordScreen() {
       await setAudioModeAsync({ allowsBackgroundRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
+      await activateKeepAwakeAsync();
     } catch (err: any) {
       setError('Failed to start recording. Please try again.');
       console.error('Recording start error:', err);
@@ -87,6 +90,7 @@ export default function RecordScreen() {
     stoppingRef.current = true;
 
     try {
+      deactivateKeepAwake();
       await recorder.stop();
       const uri = recorder.uri;
 
@@ -130,6 +134,7 @@ export default function RecordScreen() {
   }, [duration, isRecording, handleStopRecording]);
 
   const handleCancel = async () => {
+    deactivateKeepAwake();
     if (recorderState.isRecording) {
       try {
         await recorder.stop();
