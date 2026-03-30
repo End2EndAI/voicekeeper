@@ -20,7 +20,10 @@
   },
   "jest": {
     "preset": "jest-expo",
-    "testMatch": ["**/__tests__/**/*.test.ts", "**/__tests__/**/*.test.tsx"],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts",
+      "**/__tests__/**/*.test.tsx"
+    ],
     "moduleNameMapper": {
       "^expo-file-system/legacy$": "<rootDir>/__mocks__/expo-file-system-legacy.js"
     },
@@ -35,6 +38,7 @@
     "expo-audio": "~1.1.1",
     "expo-constants": "~18.0.13",
     "expo-file-system": "~18.0.12",
+    "expo-keep-awake": "~15.0.8",
     "expo-linking": "~8.0.11",
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",
