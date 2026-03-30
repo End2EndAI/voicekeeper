@@ -24,6 +24,7 @@ import { Colors } from '../../constants/colors';
 import { FORMAT_OPTIONS } from '../../constants/formats';
 import { formatDate } from '../../utils/titleGenerator';
 import { formatTranscription } from '../../services/processing';
+import { loadValidatedTerms } from '../../services/validatedTerms';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Tag, FormatType } from '../../types';
 import { AudioPlaybackBar } from '../../components/AudioPlaybackBar';
@@ -342,11 +343,15 @@ export default function NoteDetailScreen() {
     setSelectedFormat(formatType);
     setReformatting(true);
     try {
+      const validatedTerms = await loadValidatedTerms();
       const result = await formatTranscription(
         editText,
         formatType,
         formatType === 'custom' ? customExample || undefined : undefined,
         reformatInstructions || undefined,
+        false,
+        [],
+        validatedTerms.length > 0 ? validatedTerms : undefined,
       );
       setEditTitle(result.title);
       setEditText(result.formatted_text);
