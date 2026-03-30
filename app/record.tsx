@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -49,6 +51,9 @@ export default function RecordScreen() {
     const { granted } = await requestRecordingPermissionsAsync();
     setPermissionGranted(granted);
     if (granted) {
+      if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+        await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+      }
       startRecordingWithPermission();
     }
   };
