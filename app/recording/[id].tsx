@@ -92,8 +92,9 @@ export default function RecordingDetailScreen() {
       setActionError(null);
       try {
         await updateRecording(id, { status: 'transcribing' });
+        const existingTermsForTranscribe = await loadValidatedTerms();
         const { transcription: rawTranscription, uncertainTerms } =
-          await transcribeRecording(recording.localUri);
+          await transcribeRecording(recording.localUri, existingTermsForTranscribe.length > 0 ? existingTermsForTranscribe : undefined);
         await updateRecording(id, { status: 'transcribed', rawTranscription, uncertainTerms });
 
         // If there are uncertain terms, pause for user validation before formatting
@@ -168,8 +169,9 @@ export default function RecordingDetailScreen() {
     setActionError(null);
     try {
       await updateRecording(id, { status: 'transcribing' });
+      const existingTermsForTranscribe = await loadValidatedTerms();
       const { transcription: rawTranscription, uncertainTerms } =
-        await transcribeRecording(recording.localUri);
+        await transcribeRecording(recording.localUri, existingTermsForTranscribe.length > 0 ? existingTermsForTranscribe : undefined);
       await updateRecording(id, { status: 'transcribed', rawTranscription, uncertainTerms });
       if (uncertainTerms.length > 0) {
         setPendingTerms(uncertainTerms);

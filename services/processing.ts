@@ -22,7 +22,8 @@ function sliceBlob(blob: Blob): Blob[] {
 }
 
 export const transcribeRecording = async (
-  localUri: string
+  localUri: string,
+  knownTerms?: Array<{ original_term: string; corrected_term: string }>
 ): Promise<TranscribeResult> => {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('Not authenticated');
@@ -58,6 +59,8 @@ export const transcribeRecording = async (
     };
   };
 
+  const knownTermsJson = knownTerms && knownTerms.length > 0 ? JSON.stringify(knownTerms) : null;
+
   if (Platform.OS === 'web') {
     const response = await fetch(localUri);
     const blob = await response.blob();
@@ -66,6 +69,7 @@ export const transcribeRecording = async (
       const formData = new FormData();
       formData.append('audio', blob as any, 'recording.webm');
       formData.append('mode', 'transcribe_only');
+      if (knownTermsJson) formData.append('known_terms', knownTermsJson);
       return sendChunk(formData);
     }
 
@@ -91,6 +95,7 @@ export const transcribeRecording = async (
     const formData = new FormData();
     formData.append('audio', { uri: localUri, type: 'audio/m4a', name: 'recording.m4a' } as any);
     formData.append('mode', 'transcribe_only');
+    if (knownTermsJson) formData.append('known_terms', knownTermsJson);
     return sendChunk(formData);
   }
 

@@ -60,9 +60,20 @@ Always respond in the same language as the transcription, unless the user instru
 Respond ONLY with a valid JSON object with exactly two fields: "title" (string) and "content" (string containing the formatted note in markdown).`;
 
 async function detectUncertainTerms(
-  transcription: string
+  transcription: string,
+  knownTerms?: Array<{ original_term: string; corrected_term: string }>
 ): Promise<Array<{ original: string; suggestion: string | null }>> {
   try {
+    let systemContent =
+      'Identify words or phrases in this transcription that are likely misrecognized by speech-to-text: acronyms, technical terms, proper nouns, brand names, or phonetically ambiguous words. Only flag terms with genuine uncertainty — not common words. For each uncertain term, provide the original as transcribed and your best suggestion (or null if you cannot guess). Return 0 to 5 terms maximum.';
+
+    if (knownTerms && knownTerms.length > 0) {
+      const knownList = knownTerms
+        .map((t) => `  - "${t.original_term}" is already known to mean "${t.corrected_term}"`)
+        .join('\n');
+      systemContent += `\n\nDo NOT flag any of the following — they are already confirmed corrections:\n${knownList}`;
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -75,8 +86,7 @@ async function detectUncertainTerms(
         messages: [
           {
             role: 'system',
-            content:
-              'Identify words or phrases in this transcription that are likely misrecognized by speech-to-text: acronyms, technical terms, proper nouns, brand names, or phonetically ambiguous words. Only flag terms with genuine uncertainty — not common words. For each uncertain term, provide the original as transcribed and your best suggestion (or null if you cannot guess). Return 0 to 5 terms maximum.',
+            content: systemContent,
           },
           { role: 'user', content: transcription },
         ],
@@ -132,12 +142,12 @@ function buildSystemPrompt(
     prompt = `${SYSTEM_PROMPTS[formatType] || SYSTEM_PROMPTS['bullet_list']}\n\n${SHARED_SUFFIX}`;
   }
 
-  // Inject validated term corrections so the LLM uses the right spellings
+  // Inject validated term corrections so the LLM replaces misrecognized words in the transcription
   if (validatedTerms && validatedTerms.length > 0) {
     const termsList = validatedTerms
       .map((t) => `  - "${t.original_term}" → "${t.corrected_term}"`)
       .join('\n');
-    prompt += `\n\nKnown term corrections (always use these exact spellings in your output):\n${termsList}`;
+    prompt += `\n\nThe transcription may contain speech-to-text errors. Replace every occurrence of the left-hand spelling with the right-hand correct spelling when you encounter it in the transcription:\n${termsList}`;
   }
 
   // Append user custom instructions if provided (applies to all formats)
@@ -360,8 +370,14 @@ serve(async (req: Request) => {
           { status: 413, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
         );
       }
+      const knownTermsRaw = formData.get('known_terms') as string | null;
+      let knownTerms: Array<{ original_term: string; corrected_term: string }> = [];
+      if (knownTermsRaw) {
+        try { knownTerms = JSON.parse(knownTermsRaw); } catch { knownTerms = []; }
+      }
+
       const transcription = await transcribeAudio(audioFile);
-      const uncertainTerms = await detectUncertainTerms(transcription);
+      const uncertainTerms = await detectUncertainTerms(transcription, knownTerms.length > 0 ? knownTerms : undefined);
       return new Response(
         JSON.stringify({ transcription, uncertain_terms: uncertainTerms }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
