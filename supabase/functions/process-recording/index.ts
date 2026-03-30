@@ -84,6 +84,7 @@ async function detectUncertainTerms(
           type: 'json_schema',
           json_schema: {
             name: 'uncertain_terms',
+            strict: true,
             schema: {
               type: 'object',
               properties: {
@@ -93,14 +94,15 @@ async function detectUncertainTerms(
                     type: 'object',
                     properties: {
                       original: { type: 'string' },
-                      suggestion: { type: ['string', 'null'] },
+                      suggestion: { anyOf: [{ type: 'string' }, { type: 'null' }] },
                     },
                     required: ['original', 'suggestion'],
+                    additionalProperties: false,
                   },
-                  maxItems: 5,
                 },
               },
               required: ['uncertain_terms'],
+              additionalProperties: false,
             },
           },
         },
@@ -108,7 +110,8 @@ async function detectUncertainTerms(
     });
     if (!response.ok) return [];
     const result = await response.json();
-    const parsed = JSON.parse(result.choices[0].message.content);
+    const content = result.choices[0].message.content;
+    const parsed = typeof content === 'string' ? JSON.parse(content) : content;
     return parsed.uncertain_terms ?? [];
   } catch {
     return [];
