@@ -11,11 +11,13 @@ import { useNotes } from '../../contexts/NotesContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useTags } from '../../contexts/TagsContext';
 import { transcribeRecording, formatTranscription } from '../../services/processing';
+import { loadValidatedTerms, saveValidatedTerms } from '../../services/validatedTerms';
 import { Colors } from '../../constants/colors';
 import { FORMAT_OPTIONS } from '../../constants/formats';
-import { FormatType, RecordingStatus } from '../../types';
+import { FormatType, RecordingStatus, UncertainTerm } from '../../types';
 import { showAlert, showConfirm } from '../../utils/alert';
 import { AudioPlaybackBar } from '../../components/AudioPlaybackBar';
+import { AcronymValidationModal } from '../../components/AcronymValidationModal';
 
 // Status badge colors
 const STATUS_COLORS: Record<RecordingStatus, string> = {
@@ -65,6 +67,11 @@ export default function RecordingDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [reformatInstructions, setReformatInstructions] = useState(customInstructions ?? '');
 
+  // Acronym validation state
+  const [pendingTerms, setPendingTerms] = useState<UncertainTerm[]>([]);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [pendingFormatType, setPendingFormatType] = useState<FormatType | null>(null);
+
   // E4-S3: Auto-advance guard — prevents double-fire in React StrictMode
   const autoAdvanceRef = useRef(false);
 
@@ -85,8 +92,18 @@ export default function RecordingDetailScreen() {
       setActionError(null);
       try {
         await updateRecording(id, { status: 'transcribing' });
-        const rawTranscription = await transcribeRecording(recording.localUri);
-        await updateRecording(id, { status: 'transcribed', rawTranscription });
+        const existingTermsForTranscribe = await loadValidatedTerms();
+        const { transcription: rawTranscription, uncertainTerms } =
+          await transcribeRecording(recording.localUri, existingTermsForTranscribe.length > 0 ? existingTermsForTranscribe : undefined);
+        await updateRecording(id, { status: 'transcribed', rawTranscription, uncertainTerms });
+
+        // If there are uncertain terms, pause for user validation before formatting
+        if (uncertainTerms.length > 0) {
+          setPendingTerms(uncertainTerms);
+          setPendingFormatType((formatTypeParam as FormatType) ?? defaultFormat);
+          setShowValidationModal(true);
+          return; // formatting continues after modal confirmation
+        }
 
         // Step 2: Format (using the format type from navigation params)
         const formatType = (formatTypeParam as FormatType) ?? defaultFormat;
@@ -99,13 +116,15 @@ export default function RecordingDetailScreen() {
             currentTags = tags.map((t) => t.name);
           }
 
+          const existingTerms = await loadValidatedTerms();
           const result = await formatTranscription(
             rawTranscription,
             formatType,
             customExample || undefined,
             customInstructions || undefined,
             autotaggingEnabled,
-            currentTags
+            currentTags,
+            existingTerms
           );
 
           await updateRecording(id, {
@@ -150,15 +169,25 @@ export default function RecordingDetailScreen() {
     setActionError(null);
     try {
       await updateRecording(id, { status: 'transcribing' });
-      const rawTranscription = await transcribeRecording(recording.localUri);
-      await updateRecording(id, { status: 'transcribed', rawTranscription });
+      const existingTermsForTranscribe = await loadValidatedTerms();
+      const { transcription: rawTranscription, uncertainTerms } =
+        await transcribeRecording(recording.localUri, existingTermsForTranscribe.length > 0 ? existingTermsForTranscribe : undefined);
+      await updateRecording(id, { status: 'transcribed', rawTranscription, uncertainTerms });
+      if (uncertainTerms.length > 0) {
+        setPendingTerms(uncertainTerms);
+        setPendingFormatType(selectedFormat);
+        setShowValidationModal(true);
+      }
     } catch (err: any) {
       await updateRecording(id, { status: 'pending' });
       setActionError(err.message || 'Transcription failed. Please try again.');
     }
   };
 
-  const handleFormat = async (formatType: FormatType) => {
+  const handleFormat = async (
+    formatType: FormatType,
+    confirmedTerms?: Array<{ original_term: string; corrected_term: string }>
+  ) => {
     setShowFormatPicker(false);
     setActionError(null);
     try {
@@ -174,13 +203,22 @@ export default function RecordingDetailScreen() {
         currentTags = tagList.map((t) => t.name);
       }
 
+      const existingTerms = await loadValidatedTerms();
+      // Merge confirmed terms with existing (confirmed take precedence via upsert)
+      const allValidatedTerms = confirmedTerms
+        ? [...existingTerms.filter(
+            (e) => !confirmedTerms.some((c) => c.original_term === e.original_term)
+          ), ...confirmedTerms]
+        : existingTerms;
+
       const result = await formatTranscription(
         recording.rawTranscription!,
         formatType,
         customExample || undefined,
         reformatInstructions || undefined,
         autotaggingEnabled,
-        currentTags
+        currentTags,
+        allValidatedTerms
       );
 
       await updateRecording(id, {
@@ -193,6 +231,31 @@ export default function RecordingDetailScreen() {
       await updateRecording(id, { status: 'transcribed' });
       setActionError(err.message || 'Formatting failed. Please try again.');
     }
+  };
+
+  const handleValidationConfirm = async (
+    validated: Array<{ original_term: string; corrected_term: string }>
+  ) => {
+    setShowValidationModal(false);
+    setPendingTerms([]);
+    // Persist the validated terms for future use
+    try {
+      await saveValidatedTerms(validated);
+    } catch {
+      // Non-fatal: continue even if persistence fails
+    }
+    // Proceed with formatting using the confirmed corrections
+    const fmt = pendingFormatType ?? selectedFormat;
+    setPendingFormatType(null);
+    await handleFormat(fmt, validated);
+  };
+
+  const handleValidationSkip = () => {
+    setShowValidationModal(false);
+    setPendingTerms([]);
+    const fmt = pendingFormatType ?? selectedFormat;
+    setPendingFormatType(null);
+    handleFormat(fmt);
   };
 
   const handleSaveAsNote = async () => {
@@ -265,6 +328,12 @@ export default function RecordingDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <AcronymValidationModal
+        visible={showValidationModal}
+        terms={pendingTerms}
+        onConfirm={handleValidationConfirm}
+        onSkip={handleValidationSkip}
+      />
       {/* Top bar */}
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} style={styles.topButton}>

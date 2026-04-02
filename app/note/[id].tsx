@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Share,
   ActivityIndicator,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
@@ -21,14 +24,37 @@ import { Colors } from '../../constants/colors';
 import { FORMAT_OPTIONS } from '../../constants/formats';
 import { formatDate } from '../../utils/titleGenerator';
 import { formatTranscription } from '../../services/processing';
+import { loadValidatedTerms } from '../../services/validatedTerms';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Tag, FormatType } from '../../types';
 import { AudioPlaybackBar } from '../../components/AudioPlaybackBar';
 
 // Parses action_items markdown into a structured list with tappable checkboxes.
 // Toggling a checkbox updates the underlying markdown text and persists via onTextChange.
-function ActionItemsList({ text, onTextChange }: { text: string; onTextChange?: (updated: string) => void }) {
+// When allowAdd is true, shows an "+ Add item" button at the bottom.
+function ActionItemsList({
+  text,
+  onTextChange,
+  allowAdd = false,
+}: {
+  text: string;
+  onTextChange?: (updated: string) => void;
+  allowAdd?: boolean;
+}) {
+  const [newItemText, setNewItemText] = useState('');
+  const [showInput, setShowInput] = useState(false);
   const lines = text.split('\n');
+
+  // Parse items preserving original line index for mutations
+  const parsed = lines.map((line, index) => ({
+    line,
+    index,
+    unchecked: line.match(/^-\s+\[\s\]\s+(.+)/),
+    checked: line.match(/^-\s+\[x\]\s+(.+)/i),
+  }));
+  const uncheckedItems = parsed.filter((p) => p.unchecked);
+  const checkedItems = parsed.filter((p) => p.checked);
+  const otherLines = parsed.filter((p) => !p.unchecked && !p.checked && p.line.trim());
 
   const toggle = (lineIndex: number) => {
     const updated = lines.map((line, i) => {
@@ -40,28 +66,81 @@ function ActionItemsList({ text, onTextChange }: { text: string; onTextChange?: 
     onTextChange?.(updated);
   };
 
+  const removeItem = (lineIndex: number) => {
+    const updated = lines.filter((_, i) => i !== lineIndex).join('\n');
+    onTextChange?.(updated);
+  };
+
+  const addItem = () => {
+    const trimmed = newItemText.trim();
+    if (!trimmed) { setShowInput(false); return; }
+    const newLine = `- [ ] ${trimmed}`;
+    const updated = text.trimEnd() + '\n' + newLine;
+    onTextChange?.(updated);
+    setNewItemText('');
+    setShowInput(false);
+  };
+
+  const renderItem = (item: (typeof parsed)[0]) => {
+    const isChecked = !!item.checked;
+    const label = (item.unchecked ?? item.checked)![1];
+    return (
+      <View key={item.index} style={actionStyles.row}>
+        <Pressable
+          style={[actionStyles.checkbox, isChecked && actionStyles.checkboxChecked]}
+          onPress={() => toggle(item.index)}
+        >
+          {isChecked && <Text style={actionStyles.checkmark}>✓</Text>}
+        </Pressable>
+        <Text style={[actionStyles.label, isChecked && actionStyles.labelChecked]}>
+          {label}
+        </Text>
+        <Pressable onPress={() => removeItem(item.index)} style={actionStyles.removeButton} hitSlop={8}>
+          <Text style={actionStyles.removeText}>✕</Text>
+        </Pressable>
+      </View>
+    );
+  };
+
   return (
     <View>
-      {lines.map((line, i) => {
-        const unchecked = line.match(/^-\s+\[\s\]\s+(.+)/);
-        const checked = line.match(/^-\s+\[x\]\s+(.+)/i);
-        if (unchecked || checked) {
-          const isChecked = !!checked;
-          const label = (unchecked ?? checked)![1];
-          return (
-            <Pressable key={i} style={actionStyles.row} onPress={() => toggle(i)}>
-              <View style={[actionStyles.checkbox, isChecked && actionStyles.checkboxChecked]}>
-                {isChecked && <Text style={actionStyles.checkmark}>✓</Text>}
-              </View>
-              <Text style={[actionStyles.label, isChecked && actionStyles.labelChecked]}>
-                {label}
-              </Text>
+      {otherLines.map((item) => (
+        <Markdown key={item.index} style={markdownStyles}>{item.line}</Markdown>
+      ))}
+      {uncheckedItems.map(renderItem)}
+      {checkedItems.length > 0 && (
+        <>
+          <View style={actionStyles.divider} />
+          {checkedItems.map(renderItem)}
+        </>
+      )}
+      {allowAdd && (
+        showInput ? (
+          <View style={actionStyles.addRow}>
+            <TextInput
+              style={actionStyles.addInput}
+              value={newItemText}
+              onChangeText={setNewItemText}
+              placeholder="New item…"
+              placeholderTextColor={Colors.textTertiary}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={addItem}
+              blurOnSubmit={false}
+            />
+            <Pressable onPress={addItem} style={actionStyles.addConfirm}>
+              <Text style={actionStyles.addConfirmText}>Add</Text>
             </Pressable>
-          );
-        }
-        if (!line.trim()) return null;
-        return <Markdown key={i} style={markdownStyles}>{line}</Markdown>;
-      })}
+            <Pressable onPress={() => { setShowInput(false); setNewItemText(''); }} style={actionStyles.addCancel}>
+              <Text style={actionStyles.addCancelText}>✕</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable style={actionStyles.addButton} onPress={() => setShowInput(true)}>
+            <Text style={actionStyles.addButtonText}>+ Add item</Text>
+          </Pressable>
+        )
+      )}
     </View>
   );
 }
@@ -105,6 +184,66 @@ const actionStyles = StyleSheet.create({
     color: Colors.textTertiary,
     textDecorationLine: 'line-through',
   },
+  removeButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  removeText: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginVertical: 12,
+  },
+  addButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    alignSelf: 'flex-start',
+  },
+  addButtonText: {
+    fontSize: 15,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  addInput: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+  },
+  addConfirm: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+  },
+  addConfirmText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  addCancel: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  addCancelText: {
+    color: Colors.textTertiary,
+    fontSize: 16,
+  },
 });
 
 export default function NoteDetailScreen() {
@@ -117,23 +256,43 @@ export default function NoteDetailScreen() {
 
   const note = useMemo(() => notes.find((n) => n.id === id), [notes, id]);
 
-  const [isEditing, setIsEditing] = useState(false);
+  // action_items notes use checkbox UI as primary — start in view mode.
+  // Other notes start in edit mode without auto-focus (#9).
+  const [isEditing, setIsEditing] = useState(() => note?.format_type !== 'action_items');
   const [editTitle, setEditTitle] = useState(note?.title ?? '');
   const [editText, setEditText] = useState(note?.formatted_text ?? '');
   const [editFormatType, setEditFormatType] = useState<FormatType>(note?.format_type ?? 'paragraph');
   const [saving, setSaving] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
   const titleInputRef = useRef<TextInput>(null);
+  const contentInputRef = useRef<TextInput>(null);
 
   const [showFormatPicker, setShowFormatPicker] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<FormatType | null>(null);
   const [reformatInstructions, setReformatInstructions] = useState('');
   const [reformatting, setReformatting] = useState(false);
 
+  // Sync edit state when note loads (handles navigation to a different note)
   useEffect(() => {
-    if (isEditing) {
-      setTimeout(() => titleInputRef.current?.focus(), 50);
+    if (note) {
+      setEditTitle(note.title);
+      setEditText(note.formatted_text);
+      setEditFormatType(note.format_type);
+      setIsEditing(note.format_type !== 'action_items');
     }
-  }, [isEditing]);
+  }, [note?.id]);
+
+  const handleShare = useCallback(async () => {
+    if (!note) return;
+    try {
+      await Share.share({
+        title: note.title,
+        message: `${note.title}\n\n${note.formatted_text}`,
+      });
+    } catch {
+      // User dismissed share sheet — not an error
+    }
+  }, [note]);
 
   const [noteTags, setNoteTags] = useState<Tag[]>([]);
   const [tagPickerVisible, setTagPickerVisible] = useState(false);
@@ -217,17 +376,24 @@ export default function NoteDetailScreen() {
     setShowFormatPicker(false);
     setReformatInstructions('');
     setSelectedFormat(null);
+    // Dismiss keyboard
+    titleInputRef.current?.blur();
+    contentInputRef.current?.blur();
   };
 
   const handleReformat = async (formatType: FormatType) => {
     setSelectedFormat(formatType);
     setReformatting(true);
     try {
+      const validatedTerms = await loadValidatedTerms();
       const result = await formatTranscription(
         editText,
         formatType,
         formatType === 'custom' ? customExample || undefined : undefined,
         reformatInstructions || undefined,
+        false,
+        [],
+        validatedTerms.length > 0 ? validatedTerms : undefined,
       );
       setEditTitle(result.title);
       setEditText(result.formatted_text);
@@ -272,6 +438,11 @@ export default function NoteDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
       <View style={styles.topBar}>
         <Pressable
           onPress={() => router.back()}
@@ -322,12 +493,16 @@ export default function NoteDetailScreen() {
           ) : (
             <>
               <Pressable
-                onPress={() => {
-                  setEditTitle(note.title);
-                  setEditText(note.formatted_text);
-                  setEditFormatType(note.format_type);
-                  setIsEditing(true);
-                }}
+                onPress={handleShare}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <Text style={styles.shareText}>Share</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setIsEditing(true)}
                 style={({ pressed }) => [
                   styles.actionButton,
                   pressed && { opacity: 0.6 },
@@ -359,8 +534,10 @@ export default function NoteDetailScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollContent}
         contentContainerStyle={styles.scrollContentContainer}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.meta}>
           <FormatBadge formatType={note.format_type} size="medium" />
@@ -380,8 +557,11 @@ export default function NoteDetailScreen() {
               placeholderTextColor={Colors.textTertiary}
               selectTextOnFocus
               returnKeyType="next"
+              multiline
+              onSubmitEditing={() => contentInputRef.current?.focus()}
             />
             <TextInput
+              ref={contentInputRef}
               style={styles.textInput}
               value={editText}
               onChangeText={setEditText}
@@ -389,6 +569,7 @@ export default function NoteDetailScreen() {
               placeholderTextColor={Colors.textTertiary}
               multiline
               textAlignVertical="top"
+              scrollEnabled={false}
             />
 
             {/* Inline format picker */}
@@ -447,6 +628,7 @@ export default function NoteDetailScreen() {
               <ActionItemsList
                 text={note.formatted_text}
                 onTextChange={(updated) => updateNote(note.id, { formatted_text: updated })}
+                allowAdd
               />
             ) : (
               <Markdown style={markdownStyles}>{note.formatted_text}</Markdown>
@@ -501,6 +683,7 @@ export default function NoteDetailScreen() {
         onToggle={handleToggleTag}
         onCreateTag={handleCreateTag}
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -565,6 +748,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   centered: {
     flex: 1,
@@ -633,6 +819,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  shareText: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '500',
+  },
   archiveText: {
     color: Colors.warning,
     fontSize: 16,
@@ -678,6 +869,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.primary,
     paddingBottom: 10,
     letterSpacing: -0.3,
+    lineHeight: 34,
   },
   textInput: {
     fontSize: 16,

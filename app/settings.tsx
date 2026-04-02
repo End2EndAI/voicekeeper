@@ -41,11 +41,13 @@ export default function SettingsScreen() {
     customExample,
     customInstructions,
     autotaggingEnabled,
+    defaultTagId,
     isAdmin,
     setDefaultFormat,
     setCustomExample,
     setCustomInstructions,
     setAutotaggingEnabled,
+    setDefaultTagId,
   } = usePreferences();
   const { tags, createTag, deleteTag } = useTags();
 
@@ -401,6 +403,22 @@ export default function SettingsScreen() {
               <Text style={styles.navLinkChevron}>›</Text>
             </View>
           </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.navLink,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={() => router.push('/acronyms')}
+          >
+            <View style={styles.navLinkContent}>
+              <Text style={styles.navLinkIcon}>🔤</Text>
+              <View style={styles.navLinkText}>
+                <Text style={styles.navLinkTitle}>Saved Terms</Text>
+                <Text style={styles.navLinkDesc}>Corrections reused in future transcriptions</Text>
+              </View>
+              <Text style={styles.navLinkChevron}>›</Text>
+            </View>
+          </Pressable>
         </View>
 
         {/* Autotagging */}
@@ -452,6 +470,63 @@ export default function SettingsScreen() {
                   </Pressable>
                 </View>
               ))}
+            </View>
+          )}
+
+          {/* Default tag selector */}
+          {tags.length > 0 && (
+            <View style={styles.defaultTagSection}>
+              <Text style={styles.defaultTagLabel}>Default filter</Text>
+              <Text style={styles.defaultTagDesc}>
+                The app opens with this tag pre-selected.
+              </Text>
+              <View style={styles.defaultTagOptions}>
+                <Pressable
+                  style={[
+                    styles.defaultTagOption,
+                    defaultTagId === null && styles.defaultTagOptionSelected,
+                  ]}
+                  onPress={() => setDefaultTagId(null)}
+                >
+                  <Text
+                    style={[
+                      styles.defaultTagOptionText,
+                      defaultTagId === null && styles.defaultTagOptionTextSelected,
+                    ]}
+                  >
+                    None
+                  </Text>
+                  {defaultTagId === null && (
+                    <Text style={styles.defaultTagCheck}>✓</Text>
+                  )}
+                </Pressable>
+                {tags.map((tag) => (
+                  <Pressable
+                    key={tag.id}
+                    style={[
+                      styles.defaultTagOption,
+                      defaultTagId === tag.id && styles.defaultTagOptionSelected,
+                      { borderColor: tag.color + '60' },
+                    ]}
+                    onPress={() => setDefaultTagId(tag.id)}
+                  >
+                    <View
+                      style={[styles.defaultTagDot, { backgroundColor: tag.color }]}
+                    />
+                    <Text
+                      style={[
+                        styles.defaultTagOptionText,
+                        defaultTagId === tag.id && styles.defaultTagOptionTextSelected,
+                      ]}
+                    >
+                      {tag.name}
+                    </Text>
+                    {defaultTagId === tag.id && (
+                      <Text style={styles.defaultTagCheck}>✓</Text>
+                    )}
+                  </Pressable>
+                ))}
+              </View>
             </View>
           )}
 
@@ -923,6 +998,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.error,
     fontWeight: '600',
+  },
+  defaultTagSection: {
+    marginBottom: 18,
+  },
+  defaultTagLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  defaultTagDesc: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginBottom: 10,
+  },
+  defaultTagOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  defaultTagOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
+    gap: 6,
+  },
+  defaultTagOptionSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primarySubtle,
+  },
+  defaultTagDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  defaultTagOptionText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+  },
+  defaultTagOptionTextSelected: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  defaultTagCheck: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: '700',
   },
   createTagForm: {
     gap: 12,

@@ -103,6 +103,10 @@ function RootLayoutNav() {
           name="trash"
           options={{ title: 'Trash', headerShown: false }}
         />
+        <Stack.Screen
+          name="acronyms"
+          options={{ title: 'Saved Terms', headerShown: false }}
+        />
       </Stack>
     </>
   );

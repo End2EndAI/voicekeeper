@@ -15,17 +15,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
 import { createNote } from '../services/notes';
 import { useNotes } from '../contexts/NotesContext';
+import { useTags } from '../contexts/TagsContext';
+import { TagChip } from '../components/TagChip';
 import { showAlert } from '../utils/alert';
 
 export default function NoteCreateScreen() {
   const router = useRouter();
   const { fetchNotes } = useNotes();
+  const { tags, addTagToNote } = useTags();
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const contentRef = useRef<TextInput>(null);
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  };
 
   const handleSave = async () => {
     const trimmedTitle = title.trim();
@@ -38,13 +48,14 @@ export default function NoteCreateScreen() {
 
     setSaving(true);
     try {
-      await createNote({
+      const note = await createNote({
         title: trimmedTitle || 'Untitled note',
         formatted_text: trimmedContent,
         raw_transcription: null,
         format_type: 'paragraph',
         source: 'text',
       });
+      await Promise.all(selectedTagIds.map((tagId) => addTagToNote(note.id, tagId).catch(() => {})));
       await fetchNotes();
       router.back();
     } catch (err: any) {
@@ -116,6 +127,26 @@ export default function NoteCreateScreen() {
             textAlignVertical="top"
             autoFocus
           />
+
+          {tags.length > 0 && (
+            <View style={styles.tagSection}>
+              <Text style={styles.tagLabel}>Tags</Text>
+              <View style={styles.tagRow}>
+                {tags.map((tag) => {
+                  const selected = selectedTagIds.includes(tag.id);
+                  return (
+                    <Pressable
+                      key={tag.id}
+                      onPress={() => toggleTag(tag.id)}
+                      style={[styles.tagPill, selected && styles.tagPillSelected]}
+                    >
+                      <TagChip tag={tag} size="small" />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -188,7 +219,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     lineHeight: 24,
-    minHeight: 300,
+    minHeight: 200,
     padding: 0,
+  },
+  tagSection: {
+    marginTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 16,
+  },
+  tagLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tagPill: {
+    opacity: 0.45,
+  },
+  tagPillSelected: {
+    opacity: 1,
   },
 });

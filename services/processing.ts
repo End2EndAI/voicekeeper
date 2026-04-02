@@ -1,7 +1,12 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from './supabase';
-import { ProcessingResult, FormatType } from '../types';
+import { ProcessingResult, FormatType, UncertainTerm } from '../types';
+
+export interface TranscribeResult {
+  transcription: string;
+  uncertainTerms: UncertainTerm[];
+}
 
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // 25 MB — OpenAI Whisper API limit
 const CHUNK_BYTES = 24 * 1024 * 1024;        // 24 MB per chunk (1 MB safety margin)
@@ -17,8 +22,9 @@ function sliceBlob(blob: Blob): Blob[] {
 }
 
 export const transcribeRecording = async (
-  localUri: string
-): Promise<string> => {
+  localUri: string,
+  knownTerms?: Array<{ original_term: string; corrected_term: string }>
+): Promise<TranscribeResult> => {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('Not authenticated');
 
@@ -28,7 +34,7 @@ export const transcribeRecording = async (
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-  const sendChunk = async (formData: FormData): Promise<string> => {
+  const sendChunk = async (formData: FormData): Promise<TranscribeResult> => {
     const result = await fetch(
       `${supabaseUrl}/functions/v1/process-recording`,
       {
@@ -47,8 +53,13 @@ export const transcribeRecording = async (
       );
     }
     const data = await result.json();
-    return data.transcription as string;
+    return {
+      transcription: data.transcription as string,
+      uncertainTerms: (data.uncertain_terms as UncertainTerm[]) ?? [],
+    };
   };
+
+  const knownTermsJson = knownTerms && knownTerms.length > 0 ? JSON.stringify(knownTerms) : null;
 
   if (Platform.OS === 'web') {
     const response = await fetch(localUri);
@@ -58,19 +69,22 @@ export const transcribeRecording = async (
       const formData = new FormData();
       formData.append('audio', blob as any, 'recording.webm');
       formData.append('mode', 'transcribe_only');
+      if (knownTermsJson) formData.append('known_terms', knownTermsJson);
       return sendChunk(formData);
     }
 
     // File exceeds 25 MB: split, transcribe each chunk, join results
+    // Uncertain terms from fragment chunks are meaningless — skip them
     const chunks = sliceBlob(blob);
     const parts: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
       const formData = new FormData();
       formData.append('audio', chunks[i] as any, `recording-part${i + 1}.webm`);
       formData.append('mode', 'transcribe_only');
-      parts.push(await sendChunk(formData));
+      const { transcription } = await sendChunk(formData);
+      parts.push(transcription);
     }
-    return parts.join(' ');
+    return { transcription: parts.join(' '), uncertainTerms: [] };
   }
 
   // Native: check file size before deciding whether to split
@@ -81,6 +95,7 @@ export const transcribeRecording = async (
     const formData = new FormData();
     formData.append('audio', { uri: localUri, type: 'audio/m4a', name: 'recording.m4a' } as any);
     formData.append('mode', 'transcribe_only');
+    if (knownTermsJson) formData.append('known_terms', knownTermsJson);
     return sendChunk(formData);
   }
 
@@ -111,9 +126,11 @@ export const transcribeRecording = async (
       const formData = new FormData();
       formData.append('audio', { uri: tempUris[j], type: 'audio/m4a', name: `recording-part${j + 1}.m4a` } as any);
       formData.append('mode', 'transcribe_only');
-      parts.push(await sendChunk(formData));
+      const { transcription } = await sendChunk(formData);
+      parts.push(transcription);
     }
-    return parts.join(' ');
+    // Uncertain terms from fragment chunks are meaningless — skip them
+    return { transcription: parts.join(' '), uncertainTerms: [] };
   } finally {
     await Promise.all(tempUris.map(uri => FileSystem.deleteAsync(uri, { idempotent: true })));
   }
@@ -125,7 +142,8 @@ export const formatTranscription = async (
   customExample?: string,
   customInstructions?: string,
   autotaggingEnabled?: boolean,
-  userTagNames?: string[]
+  userTagNames?: string[],
+  validatedTerms?: Array<{ original_term: string; corrected_term: string }>
 ): Promise<ProcessingResult> => {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('Not authenticated');
@@ -147,6 +165,9 @@ export const formatTranscription = async (
   if (autotaggingEnabled) {
     formData.append('autotagging_enabled', 'true');
     formData.append('user_tags', JSON.stringify(userTagNames ?? []));
+  }
+  if (validatedTerms && validatedTerms.length > 0) {
+    formData.append('validated_terms', JSON.stringify(validatedTerms));
   }
 
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -181,9 +202,10 @@ export const processRecording = async (
   customInstructions?: string,
   autotaggingEnabled?: boolean,
   userTagNames?: string[]
-): Promise<ProcessingResult> => {
+): Promise<ProcessingResult & { uncertainTerms: UncertainTerm[] }> => {
   // Step 1: transcribe
-  const rawTranscription = await transcribeRecording(audioUri);
+  const { transcription: rawTranscription, uncertainTerms } =
+    await transcribeRecording(audioUri);
 
   // Step 2: format
   const result = await formatTranscription(
@@ -195,5 +217,5 @@ export const processRecording = async (
     userTagNames
   );
 
-  return result;
+  return { ...result, uncertainTerms };
 };

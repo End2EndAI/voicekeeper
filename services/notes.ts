@@ -1,13 +1,30 @@
 import { supabase } from './supabase';
-import { Note, CreateNoteInput, UpdateNoteInput } from '../types';
+import { Note, CreateNoteInput, UpdateNoteInput, NoteSort } from '../types';
 
-export const fetchNotes = async (): Promise<Note[]> => {
-  const { data, error } = await supabase
+export const fetchNotes = async (sort: NoteSort = 'date_desc'): Promise<Note[]> => {
+  let query = supabase
     .from('notes')
     .select('*')
     .is('deleted_at', null)
-    .is('archived_at', null)
-    .order('created_at', { ascending: false });
+    .is('archived_at', null);
+
+  switch (sort) {
+    case 'date_asc':
+      query = query.order('created_at', { ascending: true }).order('id', { ascending: true });
+      break;
+    case 'title_asc':
+      query = query.order('title', { ascending: true }).order('id', { ascending: true });
+      break;
+    case 'title_desc':
+      query = query.order('title', { ascending: false }).order('id', { ascending: true });
+      break;
+    case 'manual':
+    case 'date_desc':
+    default:
+      query = query.order('created_at', { ascending: false }).order('id', { ascending: true });
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 };

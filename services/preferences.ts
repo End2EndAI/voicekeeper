@@ -93,3 +93,19 @@ export const setAutotaggingEnabled = async (enabled: boolean): Promise<void> => 
 
   if (error) throw error;
 };
+
+export const setDefaultTagId = async (tagId: string | null): Promise<void> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('user_preferences')
+    .upsert(
+      { user_id: user.id, default_tag_id: tagId },
+      { onConflict: 'user_id' }
+    );
+
+  if (error) throw error;
+};
