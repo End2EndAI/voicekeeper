@@ -5,7 +5,6 @@ import {
   PanResponder,
   Animated,
   StyleSheet,
-  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Note } from '../types';
@@ -18,6 +17,7 @@ interface DraggableNoteListProps {
   onReorder: (newIds: string[]) => void;
   onRefresh: () => void;
   loading: boolean;
+  reorderMode?: boolean;
 }
 
 export const DraggableNoteList: React.FC<DraggableNoteListProps> = ({
@@ -26,6 +26,7 @@ export const DraggableNoteList: React.FC<DraggableNoteListProps> = ({
   onReorder,
   onRefresh,
   loading,
+  reorderMode = false,
 }) => {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
@@ -107,17 +108,12 @@ export const DraggableNoteList: React.FC<DraggableNoteListProps> = ({
     <ScrollView
       ref={scrollRef}
       scrollEnabled={scrollEnabled}
+      bounces={false}
+      overScrollMode="never"
       showsVerticalScrollIndicator={false}
       onScroll={(e) => { scrollOffset.current = e.nativeEvent.contentOffset.y; }}
       scrollEventThrottle={16}
       contentContainerStyle={[styles.content, { paddingBottom: 120 + insets.bottom }]}
-      refreshControl={
-        <RefreshControl
-          refreshing={loading}
-          onRefresh={onRefresh}
-          tintColor={Colors.primary}
-        />
-      }
     >
       {notes.map((note, index) => {
         const isDragging = draggingIndex === index;
@@ -146,14 +142,16 @@ export const DraggableNoteList: React.FC<DraggableNoteListProps> = ({
                 <View style={styles.cardWrapper}>
                   <NoteCard note={note} onPress={onNotePress} />
                 </View>
-                <View
-                  style={[styles.dragHandle, isDragging && styles.dragHandleActive]}
-                  {...panResponder.panHandlers}
-                >
-                  <View style={styles.dragBar} />
-                  <View style={styles.dragBar} />
-                  <View style={styles.dragBar} />
-                </View>
+                {reorderMode && (
+                  <View
+                    style={[styles.dragHandle, isDragging && styles.dragHandleActive]}
+                    {...panResponder.panHandlers}
+                  >
+                    <View style={styles.dragBar} />
+                    <View style={styles.dragBar} />
+                    <View style={styles.dragBar} />
+                  </View>
+                )}
               </View>
             </Animated.View>
           </View>

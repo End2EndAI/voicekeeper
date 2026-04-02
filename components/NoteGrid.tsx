@@ -20,6 +20,7 @@ interface NoteGridProps {
   onRefresh: () => void;
   hasActiveFilter?: boolean;
   draggable?: boolean;
+  reorderMode?: boolean;
   onReorder?: (newIds: string[]) => void;
 }
 
@@ -30,6 +31,7 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
   onRefresh,
   hasActiveFilter = false,
   draggable = false,
+  reorderMode = false,
   onReorder,
 }) => {
   const insets = useSafeAreaInsets();
@@ -76,6 +78,7 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
         onReorder={onReorder}
         onRefresh={onRefresh}
         loading={loading}
+        reorderMode={reorderMode}
       />
     );
   }

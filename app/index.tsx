@@ -31,6 +31,7 @@ export default function HomeScreen() {
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [tagNoteIds, setTagNoteIds] = useState<string[] | null>(null);
   const [showSortPicker, setShowSortPicker] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
 
   // Apply default tag filter on first load
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function HomeScreen() {
   const handleSortChange = (newSort: NoteSort) => {
     setSort(newSort);
     setShowSortPicker(false);
+    if (newSort !== 'manual') setReorderMode(false);
   };
 
   const displayedNotes = useMemo(() => {
@@ -113,6 +115,23 @@ export default function HomeScreen() {
           </Pressable>
         </View>
         <View style={styles.headerActions}>
+          {sort === 'manual' && (
+            <Pressable
+              onPress={() => setReorderMode((v) => !v)}
+              style={({ pressed }) => [
+                styles.iconButton,
+                reorderMode && styles.iconButtonActive,
+                pressed && styles.iconButtonPressed,
+              ]}
+              accessibilityLabel="Toggle reorder mode"
+            >
+              <View style={styles.reorderIconContainer}>
+                <View style={[styles.reorderBar, reorderMode && styles.reorderBarActive]} />
+                <View style={[styles.reorderBar, reorderMode && styles.reorderBarActive]} />
+                <View style={[styles.reorderBar, reorderMode && styles.reorderBarActive]} />
+              </View>
+            </Pressable>
+          )}
           <Pressable
             onPress={handleRecordings}
             style={({ pressed }) => [
@@ -160,6 +179,7 @@ export default function HomeScreen() {
           onRefresh={handleRefresh}
           hasActiveFilter={selectedTagId !== null}
           draggable={sort === 'manual'}
+          reorderMode={reorderMode}
           onReorder={setManualOrder}
         />
       </View>
@@ -264,6 +284,25 @@ const styles = StyleSheet.create({
   iconButtonPressed: {
     backgroundColor: Colors.surfaceHover,
     transform: [{ scale: 0.95 }],
+  },
+  iconButtonActive: {
+    backgroundColor: Colors.primarySubtle,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+  },
+  reorderIconContainer: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    gap: 3,
+  },
+  reorderBar: {
+    height: 2.5,
+    borderRadius: 1.5,
+    backgroundColor: Colors.textSecondary,
+  },
+  reorderBarActive: {
+    backgroundColor: Colors.primary,
   },
   recordingsIconContainer: {
     width: 20,
