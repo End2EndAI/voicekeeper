@@ -49,7 +49,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
     notes: [],
     loading: false,
     searchQuery: '',
-    sort: 'date_desc',
+    sort: 'manual',
     manualOrder: [],
   });
 
@@ -83,7 +83,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
     if (session) {
       fetchNotes();
     } else {
-      setState({ notes: [], loading: false, searchQuery: '', sort: 'date_desc', manualOrder: [] });
+      setState({ notes: [], loading: false, searchQuery: '', sort: 'manual', manualOrder: [] });
     }
   }, [session, fetchNotes]);
 

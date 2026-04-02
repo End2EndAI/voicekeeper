@@ -36,6 +36,7 @@ export const DraggableNoteList: React.FC<DraggableNoteListProps> = ({
 
   // Active drag state
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
   const dragTranslateY = useRef(new Animated.Value(0)).current;
   const activeDeltaY = useRef(0);
 
@@ -64,11 +65,14 @@ export const DraggableNoteList: React.FC<DraggableNoteListProps> = ({
     (noteIndex: number) =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponderCapture: () => true,
         onPanResponderGrant: () => {
           dragTranslateY.setValue(0);
           activeDeltaY.current = 0;
           setDraggingIndex(noteIndex);
-          scrollRef.current?.setNativeProps({ scrollEnabled: false });
+          setScrollEnabled(false);
         },
         onPanResponderMove: (_, gesture) => {
           activeDeltaY.current = gesture.dy;
@@ -87,12 +91,12 @@ export const DraggableNoteList: React.FC<DraggableNoteListProps> = ({
 
           dragTranslateY.setValue(0);
           setDraggingIndex(null);
-          scrollRef.current?.setNativeProps({ scrollEnabled: true });
+          setScrollEnabled(true);
         },
         onPanResponderTerminate: () => {
           dragTranslateY.setValue(0);
           setDraggingIndex(null);
-          scrollRef.current?.setNativeProps({ scrollEnabled: true });
+          setScrollEnabled(true);
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,6 +106,7 @@ export const DraggableNoteList: React.FC<DraggableNoteListProps> = ({
   return (
     <ScrollView
       ref={scrollRef}
+      scrollEnabled={scrollEnabled}
       showsVerticalScrollIndicator={false}
       onScroll={(e) => { scrollOffset.current = e.nativeEvent.contentOffset.y; }}
       scrollEventThrottle={16}
