@@ -245,7 +245,7 @@ async function suggestTags(
         {
           role: 'system',
           content:
-            'Given this note content, select 0 to 3 relevant tags from the provided list. Only use tags from the list. If no tags are relevant, return an empty array.',
+            'Given this note content, select at most 1 relevant tag from the provided list. Only use tags from the list. If no tags are relevant, return an empty array.',
         },
         {
           role: 'user',
@@ -262,7 +262,7 @@ async function suggestTags(
               tags: {
                 type: 'array',
                 items: { type: 'string' },
-                maxItems: 3,
+                maxItems: 1,
               },
             },
             required: ['tags'],
