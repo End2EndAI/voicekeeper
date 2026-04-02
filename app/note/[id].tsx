@@ -45,6 +45,17 @@ function ActionItemsList({
   const [showInput, setShowInput] = useState(false);
   const lines = text.split('\n');
 
+  // Parse items preserving original line index for mutations
+  const parsed = lines.map((line, index) => ({
+    line,
+    index,
+    unchecked: line.match(/^-\s+\[\s\]\s+(.+)/),
+    checked: line.match(/^-\s+\[x\]\s+(.+)/i),
+  }));
+  const uncheckedItems = parsed.filter((p) => p.unchecked);
+  const checkedItems = parsed.filter((p) => p.checked);
+  const otherLines = parsed.filter((p) => !p.unchecked && !p.checked && p.line.trim());
+
   const toggle = (lineIndex: number) => {
     const updated = lines.map((line, i) => {
       if (i !== lineIndex) return line;
@@ -52,6 +63,11 @@ function ActionItemsList({
       if (line.match(/^-\s+\[x\]\s+/i)) return line.replace(/^(-\s+)\[x\]/i, '$1[ ]');
       return line;
     }).join('\n');
+    onTextChange?.(updated);
+  };
+
+  const removeItem = (lineIndex: number) => {
+    const updated = lines.filter((_, i) => i !== lineIndex).join('\n');
     onTextChange?.(updated);
   };
 
@@ -65,28 +81,39 @@ function ActionItemsList({
     setShowInput(false);
   };
 
+  const renderItem = (item: (typeof parsed)[0]) => {
+    const isChecked = !!item.checked;
+    const label = (item.unchecked ?? item.checked)![1];
+    return (
+      <View key={item.index} style={actionStyles.row}>
+        <Pressable
+          style={[actionStyles.checkbox, isChecked && actionStyles.checkboxChecked]}
+          onPress={() => toggle(item.index)}
+        >
+          {isChecked && <Text style={actionStyles.checkmark}>✓</Text>}
+        </Pressable>
+        <Text style={[actionStyles.label, isChecked && actionStyles.labelChecked]}>
+          {label}
+        </Text>
+        <Pressable onPress={() => removeItem(item.index)} style={actionStyles.removeButton} hitSlop={8}>
+          <Text style={actionStyles.removeText}>✕</Text>
+        </Pressable>
+      </View>
+    );
+  };
+
   return (
     <View>
-      {lines.map((line, i) => {
-        const unchecked = line.match(/^-\s+\[\s\]\s+(.+)/);
-        const checked = line.match(/^-\s+\[x\]\s+(.+)/i);
-        if (unchecked || checked) {
-          const isChecked = !!checked;
-          const label = (unchecked ?? checked)![1];
-          return (
-            <Pressable key={i} style={actionStyles.row} onPress={() => toggle(i)}>
-              <View style={[actionStyles.checkbox, isChecked && actionStyles.checkboxChecked]}>
-                {isChecked && <Text style={actionStyles.checkmark}>✓</Text>}
-              </View>
-              <Text style={[actionStyles.label, isChecked && actionStyles.labelChecked]}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        }
-        if (!line.trim()) return null;
-        return <Markdown key={i} style={markdownStyles}>{line}</Markdown>;
-      })}
+      {otherLines.map((item) => (
+        <Markdown key={item.index} style={markdownStyles}>{item.line}</Markdown>
+      ))}
+      {uncheckedItems.map(renderItem)}
+      {checkedItems.length > 0 && (
+        <>
+          <View style={actionStyles.divider} />
+          {checkedItems.map(renderItem)}
+        </>
+      )}
       {allowAdd && (
         showInput ? (
           <View style={actionStyles.addRow}>
@@ -157,6 +184,19 @@ const actionStyles = StyleSheet.create({
     color: Colors.textTertiary,
     textDecorationLine: 'line-through',
   },
+  removeButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  removeText: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginVertical: 12,
+  },
   addButton: {
     marginTop: 12,
     paddingVertical: 8,
@@ -216,8 +256,9 @@ export default function NoteDetailScreen() {
 
   const note = useMemo(() => notes.find((n) => n.id === id), [notes, id]);
 
-  // Edit mode is active by default but we do NOT auto-focus the keyboard (#9)
-  const [isEditing, setIsEditing] = useState(true);
+  // action_items notes use checkbox UI as primary — start in view mode.
+  // Other notes start in edit mode without auto-focus (#9).
+  const [isEditing, setIsEditing] = useState(() => note?.format_type !== 'action_items');
   const [editTitle, setEditTitle] = useState(note?.title ?? '');
   const [editText, setEditText] = useState(note?.formatted_text ?? '');
   const [editFormatType, setEditFormatType] = useState<FormatType>(note?.format_type ?? 'paragraph');
@@ -237,6 +278,7 @@ export default function NoteDetailScreen() {
       setEditTitle(note.title);
       setEditText(note.formatted_text);
       setEditFormatType(note.format_type);
+      setIsEditing(note.format_type !== 'action_items');
     }
   }, [note?.id]);
 

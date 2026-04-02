@@ -93,28 +93,25 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerLeft}>
           <View style={styles.brand}>
             <Image source={require('../assets/logo_no_bg.png')} style={styles.logo} />
             <Text style={styles.greeting}>VoiceKeeper</Text>
           </View>
-          <Text style={styles.subtitle}>
-            {displayedNotes.length > 0
-              ? `${displayedNotes.length} note${displayedNotes.length !== 1 ? 's' : ''}`
-              : 'No notes yet'}
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
           <Pressable
             onPress={() => setShowSortPicker(true)}
-            style={({ pressed }) => [
-              styles.headerActionButton,
-              pressed && { opacity: 0.6 },
-            ]}
+            style={({ pressed }) => [styles.subtitleRow, pressed && { opacity: 0.6 }]}
             accessibilityLabel="Sort notes"
           >
-            <Text style={styles.sortButtonText}>↕ {currentSortLabel}</Text>
+            <Text style={styles.subtitle}>
+              {displayedNotes.length > 0
+                ? `${displayedNotes.length} note${displayedNotes.length !== 1 ? 's' : ''}`
+                : 'No notes yet'}
+            </Text>
+            <Text style={styles.sortIndicator}> · ↕ {currentSortLabel}</Text>
           </Pressable>
+        </View>
+        <View style={styles.headerActions}>
           <Pressable
             onPress={handleRecordings}
             style={({ pressed }) => [
@@ -233,22 +230,24 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     marginTop: 2,
   },
+  headerLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  sortIndicator: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  headerActionButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.surface,
-    ...Colors.shadow.sm,
-  },
-  sortButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textSecondary,
   },
   iconButton: {
     width: 44,
