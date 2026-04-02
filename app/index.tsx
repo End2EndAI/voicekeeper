@@ -118,27 +118,31 @@ export default function HomeScreen() {
           <Pressable
             onPress={handleRecordings}
             style={({ pressed }) => [
-              styles.headerActionButton,
-              pressed && { opacity: 0.6 },
+              styles.iconButton,
+              pressed && styles.iconButtonPressed,
             ]}
             accessibilityLabel="Recordings"
           >
-            <Text style={styles.recordingsButtonText}>Recordings</Text>
+            <View style={styles.recordingsIconContainer}>
+              <View style={styles.recordingsBar} />
+              <View style={styles.recordingsBar} />
+              <View style={[styles.recordingsBar, styles.recordingsBarShort]} />
+            </View>
           </Pressable>
           <Pressable
-          onPress={handleSettings}
-          style={({ pressed }) => [
-            styles.settingsButton,
-            pressed && styles.settingsButtonPressed,
-          ]}
-          accessibilityLabel="Settings"
-        >
-          <View style={styles.settingsIconContainer}>
-            <View style={styles.gearDot} />
-            <View style={[styles.gearDot, styles.gearDot2]} />
-            <View style={[styles.gearDot, styles.gearDot3]} />
-          </View>
-        </Pressable>
+            onPress={handleSettings}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.iconButtonPressed,
+            ]}
+            accessibilityLabel="Settings"
+          >
+            <View style={styles.settingsIconContainer}>
+              <View style={styles.gearDot} />
+              <View style={styles.gearDot} />
+              <View style={styles.gearDot} />
+            </View>
+          </Pressable>
         </View>
       </View>
 
@@ -246,10 +250,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textSecondary,
   },
-  recordingsButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.primary,
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Colors.shadow.sm,
+  },
+  iconButtonPressed: {
+    backgroundColor: Colors.surfaceHover,
+    transform: [{ scale: 0.95 }],
+  },
+  recordingsIconContainer: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    gap: 3,
+  },
+  recordingsBar: {
+    height: 2.5,
+    borderRadius: 1.5,
+    backgroundColor: Colors.primary,
+  },
+  recordingsBarShort: {
+    width: '60%',
   },
   modalOverlay: {
     flex: 1,
@@ -293,34 +319,19 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '700',
   },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Colors.shadow.sm,
-  },
-  settingsButtonPressed: {
-    backgroundColor: Colors.surfaceHover,
-    transform: [{ scale: 0.95 }],
-  },
   settingsIconContainer: {
     width: 20,
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 3,
   },
   gearDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
     backgroundColor: Colors.textSecondary,
-    marginVertical: 1.5,
   },
-  gearDot2: {},
-  gearDot3: {},
   listContainer: {
     flex: 1,
   },
