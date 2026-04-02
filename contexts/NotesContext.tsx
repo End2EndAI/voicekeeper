@@ -83,7 +83,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
     if (session) {
       fetchNotes();
     } else {
-      setState({ notes: [], loading: false, searchQuery: '', sort: 'date_desc' });
+      setState({ notes: [], loading: false, searchQuery: '', sort: 'date_desc', manualOrder: [] });
     }
   }, [session, fetchNotes]);
 
@@ -200,7 +200,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
       );
     })();
 
-    if (state.sort !== 'manual' || state.manualOrder.length === 0) return base;
+    if (state.sort !== 'manual' || (state.manualOrder ?? []).length === 0) return base;
 
     // Apply manual order: known IDs first (in saved order), then new notes appended
     const orderMap = new Map(state.manualOrder.map((id, i) => [id, i]));
