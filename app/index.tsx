@@ -140,10 +140,12 @@ export default function HomeScreen() {
             ]}
             accessibilityLabel="Recordings"
           >
-            <View style={styles.recordingsIconContainer}>
-              <View style={styles.recordingsBar} />
-              <View style={styles.recordingsBar} />
-              <View style={[styles.recordingsBar, styles.recordingsBarShort]} />
+            <View style={styles.waveformContainer}>
+              <View style={[styles.waveBar, { height: 6 }]} />
+              <View style={[styles.waveBar, { height: 14 }]} />
+              <View style={[styles.waveBar, { height: 10 }]} />
+              <View style={[styles.waveBar, { height: 16 }]} />
+              <View style={[styles.waveBar, { height: 8 }]} />
             </View>
           </Pressable>
           <Pressable
@@ -304,19 +306,16 @@ const styles = StyleSheet.create({
   reorderBarActive: {
     backgroundColor: Colors.primary,
   },
-  recordingsIconContainer: {
-    width: 20,
+  waveformContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2.5,
     height: 20,
-    justifyContent: 'center',
-    gap: 3,
   },
-  recordingsBar: {
-    height: 2.5,
+  waveBar: {
+    width: 2.5,
     borderRadius: 1.5,
     backgroundColor: Colors.primary,
-  },
-  recordingsBarShort: {
-    width: '60%',
   },
   modalOverlay: {
     flex: 1,
