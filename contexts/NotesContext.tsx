@@ -13,12 +13,14 @@ import * as notesService from '../services/notes';
 import { useAuth } from './AuthContext';
 
 const SORT_KEY = '@voicekeeper/notes_sort';
+const MANUAL_ORDER_KEY = '@voicekeeper/manual_order';
 
 interface NotesState {
   notes: Note[];
   loading: boolean;
   searchQuery: string;
   sort: NoteSort;
+  manualOrder: string[]; // note IDs in user-defined order
 }
 
 interface NotesContextType extends NotesState {
@@ -34,6 +36,7 @@ interface NotesContextType extends NotesState {
   deleteNotePermanently: (id: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
   setSort: (sort: NoteSort) => void;
+  setManualOrder: (ids: string[]) => void;
 }
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
@@ -47,14 +50,20 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
     loading: false,
     searchQuery: '',
     sort: 'date_desc',
+    manualOrder: [],
   });
 
-  // Restore persisted sort on mount
+  // Restore persisted sort and manual order on mount
   useEffect(() => {
-    AsyncStorage.getItem(SORT_KEY).then((saved) => {
-      if (saved) {
-        setState((prev) => ({ ...prev, sort: saved as NoteSort }));
-      }
+    Promise.all([
+      AsyncStorage.getItem(SORT_KEY),
+      AsyncStorage.getItem(MANUAL_ORDER_KEY),
+    ]).then(([savedSort, savedOrder]) => {
+      setState((prev) => ({
+        ...prev,
+        ...(savedSort ? { sort: savedSort as NoteSort } : {}),
+        ...(savedOrder ? { manualOrder: JSON.parse(savedOrder) as string[] } : {}),
+      }));
     }).catch(() => {});
   }, []);
 
@@ -174,16 +183,33 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
     AsyncStorage.setItem(SORT_KEY, sort).catch(() => {});
   }, []);
 
+  const setManualOrder = useCallback((ids: string[]) => {
+    setState((prev) => ({ ...prev, manualOrder: ids }));
+    AsyncStorage.setItem(MANUAL_ORDER_KEY, JSON.stringify(ids)).catch(() => {});
+  }, []);
+
   const filteredNotes = useMemo(() => {
-    if (!state.searchQuery.trim()) return state.notes;
-    const q = state.searchQuery.toLowerCase();
-    return state.notes.filter(
-      (note) =>
-        note.title.toLowerCase().includes(q) ||
-        note.formatted_text.toLowerCase().includes(q) ||
-        note.raw_transcription?.toLowerCase().includes(q)
-    );
-  }, [state.notes, state.searchQuery]);
+    const base = (() => {
+      if (!state.searchQuery.trim()) return state.notes;
+      const q = state.searchQuery.toLowerCase();
+      return state.notes.filter(
+        (note) =>
+          note.title.toLowerCase().includes(q) ||
+          note.formatted_text.toLowerCase().includes(q) ||
+          note.raw_transcription?.toLowerCase().includes(q)
+      );
+    })();
+
+    if (state.sort !== 'manual' || state.manualOrder.length === 0) return base;
+
+    // Apply manual order: known IDs first (in saved order), then new notes appended
+    const orderMap = new Map(state.manualOrder.map((id, i) => [id, i]));
+    const known = base
+      .filter((n) => orderMap.has(n.id))
+      .sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+    const newNotes = base.filter((n) => !orderMap.has(n.id));
+    return [...known, ...newNotes];
+  }, [state.notes, state.searchQuery, state.sort, state.manualOrder]);
 
   return (
     <NotesContext.Provider
@@ -201,6 +227,7 @@ export const NotesProvider: React.FC<{ children: ReactNode }> = ({
         deleteNotePermanently,
         setSearchQuery,
         setSort,
+        setManualOrder,
       }}
     >
       {children}

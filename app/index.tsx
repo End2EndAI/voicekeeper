@@ -18,11 +18,12 @@ const SORT_OPTIONS: { value: NoteSort; label: string }[] = [
   { value: 'date_asc', label: 'Oldest first' },
   { value: 'title_asc', label: 'Title A→Z' },
   { value: 'title_desc', label: 'Title Z→A' },
+  { value: 'manual', label: 'Manual order' },
 ];
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { filteredNotes, loading, searchQuery, setSearchQuery, fetchNotes, sort, setSort } =
+  const { filteredNotes, loading, searchQuery, setSearchQuery, fetchNotes, sort, setSort, setManualOrder } =
     useNotes();
   const { tags, refreshNoteTagsMap } = useTags();
   const { defaultTagId } = usePreferences();
@@ -158,6 +159,8 @@ export default function HomeScreen() {
           onNotePress={handleNotePress}
           onRefresh={handleRefresh}
           hasActiveFilter={selectedTagId !== null}
+          draggable={sort === 'manual'}
+          onReorder={setManualOrder}
         />
       </View>
 

@@ -1,6 +1,6 @@
 export type FormatType = 'bullet_list' | 'paragraph' | 'action_items' | 'meeting_notes' | 'custom';
 
-export type NoteSort = 'date_desc' | 'date_asc' | 'title_asc' | 'title_desc';
+export type NoteSort = 'date_desc' | 'date_asc' | 'title_asc' | 'title_desc' | 'manual';
 
 export type RecordingStatus =
   | 'pending'       // audio saved locally, not yet transcribed

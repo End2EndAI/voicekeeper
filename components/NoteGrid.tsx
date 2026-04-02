@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Note } from '../types';
 import { NoteCard } from './NoteCard';
+import { DraggableNoteList } from './DraggableNoteList';
 import { Colors } from '../constants/colors';
 
 interface NoteGridProps {
@@ -18,6 +19,8 @@ interface NoteGridProps {
   onNotePress: (note: Note) => void;
   onRefresh: () => void;
   hasActiveFilter?: boolean;
+  draggable?: boolean;
+  onReorder?: (newIds: string[]) => void;
 }
 
 export const NoteGrid: React.FC<NoteGridProps> = ({
@@ -26,6 +29,8 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
   onNotePress,
   onRefresh,
   hasActiveFilter = false,
+  draggable = false,
+  onReorder,
 }) => {
   const insets = useSafeAreaInsets();
 
@@ -60,6 +65,18 @@ export const NoteGrid: React.FC<NoteGridProps> = ({
           </>
         )}
       </View>
+    );
+  }
+
+  if (draggable && onReorder) {
+    return (
+      <DraggableNoteList
+        notes={notes}
+        onNotePress={onNotePress}
+        onReorder={onReorder}
+        onRefresh={onRefresh}
+        loading={loading}
+      />
     );
   }
 
