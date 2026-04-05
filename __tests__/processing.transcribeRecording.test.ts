@@ -5,6 +5,7 @@
  *   - supabase.auth  → authenticated session
  *   - fetch          → fake Whisper endpoint returning "chunk-<N>"
  *   - expo-file-system/legacy → in-memory file store
+ *   - audio-splitter → returns pre-built chunks (web blobs / native temp URIs)
  *   - react-native Platform  → overridable per describe block
  */
 
@@ -33,39 +34,32 @@ jest.mock('expo-file-system/legacy', () => ({
   copyAsync: jest.fn(),
 }));
 
+jest.mock('../services/audio-splitter', () => ({
+  splitAudioWeb: jest.fn(),
+  splitAudioNative: jest.fn(),
+}));
+
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { transcribeRecording } from '../services/processing';
+import { splitAudioWeb, splitAudioNative } from '../services/audio-splitter';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MB = 1024 * 1024;
-const CHUNK_BYTES = 24 * MB;
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Build a base64 string that represents `bytes` bytes of binary data. */
-function makeBase64(bytes: number): string {
-  return 'A'.repeat(Math.ceil(bytes / 3) * 4);
-}
-
-// ─── In-memory file store ─────────────────────────────────────────────────────
-
-const fileStore: Record<string, string> = {};
-const deletedUris: string[] = [];
 
 // ─── Global fetch mock ────────────────────────────────────────────────────────
 
 let whisperCallCount = 0;
 const mockFetch = jest.fn();
+const deletedUris: string[] = [];
 
 beforeEach(() => {
   jest.clearAllMocks();
   whisperCallCount = 0;
   deletedUris.length = 0;
-  Object.keys(fileStore).forEach(k => delete fileStore[k]);
 
   // Default: native
   (Platform as any).OS = 'native';
@@ -81,17 +75,9 @@ beforeEach(() => {
   });
   global.fetch = mockFetch as any;
 
-  // FileSystem: in-memory file store
-  (FileSystem.writeAsStringAsync as jest.Mock).mockImplementation((uri: string, data: string) => {
-    fileStore[uri] = data;
-    return Promise.resolve();
-  });
-  (FileSystem.readAsStringAsync as jest.Mock).mockImplementation((uri: string) =>
-    Promise.resolve(fileStore[uri] ?? '')
-  );
+  // FileSystem: track deletions
   (FileSystem.deleteAsync as jest.Mock).mockImplementation((uri: string) => {
     deletedUris.push(uri);
-    delete fileStore[uri];
     return Promise.resolve();
   });
 });
@@ -105,23 +91,26 @@ describe('transcribeRecording — small file (≤ 25 MB)', () => {
     const result = await transcribeRecording('file://recording.m4a');
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(result).toBe('chunk-1');
+    expect(result).toEqual({
+      transcription: 'chunk-1',
+      uncertainTerms: [],
+    });
   });
 });
 
 describe('transcribeRecording — large file (> 25 MB, native)', () => {
-  // 50 MB → ceil(50/24) = 3 chunks (24 MB + 24 MB + 2 MB)
-  const FILE_SIZE = 50 * MB;
-  const EXPECTED_CHUNKS = Math.ceil(FILE_SIZE / CHUNK_BYTES); // 3
+  const EXPECTED_CHUNKS = 3;
+  const tempUris = ['cache://chunk-0.m4a', 'cache://chunk-1.m4a', 'cache://chunk-2.m4a'];
 
   beforeEach(() => {
-    (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: FILE_SIZE });
-    fileStore['file://recording.m4a'] = makeBase64(FILE_SIZE);
+    (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true, size: 50 * MB });
+    (splitAudioNative as jest.Mock).mockResolvedValue(tempUris);
   });
 
-  it('splits into the correct number of chunks', async () => {
+  it('calls splitAudioNative and sends one request per chunk', async () => {
     await transcribeRecording('file://recording.m4a');
 
+    expect(splitAudioNative).toHaveBeenCalledWith('file://recording.m4a');
     expect(mockFetch).toHaveBeenCalledTimes(EXPECTED_CHUNKS);
   });
 
@@ -129,23 +118,20 @@ describe('transcribeRecording — large file (> 25 MB, native)', () => {
     const result = await transcribeRecording('file://recording.m4a');
 
     const expected = Array.from({ length: EXPECTED_CHUNKS }, (_, i) => `chunk-${i + 1}`).join(' ');
-    expect(result).toBe(expected);
+    expect(result).toEqual({
+      transcription: expected,
+      uncertainTerms: [],
+    });
   });
 
-  it('writes one temp file per chunk then deletes all of them', async () => {
+  it('deletes all temp files after transcription', async () => {
     await transcribeRecording('file://recording.m4a');
 
-    expect(FileSystem.writeAsStringAsync).toHaveBeenCalledTimes(EXPECTED_CHUNKS);
     expect(FileSystem.deleteAsync).toHaveBeenCalledTimes(EXPECTED_CHUNKS);
-
-    const writtenUris = (FileSystem.writeAsStringAsync as jest.Mock).mock.calls.map(
-      (c: any[]) => c[0] as string
-    );
-    expect(deletedUris.sort()).toEqual(writtenUris.sort());
+    expect(deletedUris.sort()).toEqual(tempUris.sort());
   });
 
   it('deletes all temp files even when Whisper throws', async () => {
-    // Make the second Whisper call fail
     let calls = 0;
     mockFetch.mockImplementation(() => {
       calls += 1;
@@ -155,47 +141,29 @@ describe('transcribeRecording — large file (> 25 MB, native)', () => {
 
     await expect(transcribeRecording('file://recording.m4a')).rejects.toThrow();
 
-    // Cleanup must still have run for all written temp files
-    const writtenUris = (FileSystem.writeAsStringAsync as jest.Mock).mock.calls.map(
-      (c: any[]) => c[0] as string
-    );
-    expect(writtenUris.length).toBeGreaterThan(0);
-    expect(deletedUris.sort()).toEqual(writtenUris.sort());
-  });
-
-  it('each chunk is the correct base64 size', async () => {
-    await transcribeRecording('file://recording.m4a');
-
-    const charsPerChunk = (CHUNK_BYTES / 3) * 4;
-    const chunkSizes = (FileSystem.writeAsStringAsync as jest.Mock).mock.calls.map(
-      (c: any[]) => (c[1] as string).length
-    );
-
-    // All chunks except the last must be exactly charsPerChunk
-    chunkSizes.slice(0, -1).forEach(len => expect(len).toBe(charsPerChunk));
-    // Last chunk is smaller (the remainder)
-    expect(chunkSizes[chunkSizes.length - 1]).toBeLessThan(charsPerChunk);
-    // All chunks together re-assemble to the full file
-    const totalChars = chunkSizes.reduce((a, b) => a + b, 0);
-    expect(totalChars).toBe(makeBase64(FILE_SIZE).length);
+    // Cleanup must still have run for all temp files
+    expect(deletedUris.sort()).toEqual(tempUris.sort());
   });
 });
 
 describe('transcribeRecording — large file (> 25 MB, web)', () => {
-  // 30 MB → ceil(30/24) = 2 chunks
-  const FILE_SIZE = 30 * MB;
-  const EXPECTED_CHUNKS = Math.ceil(FILE_SIZE / CHUNK_BYTES); // 2
+  const EXPECTED_CHUNKS = 2;
+  const fakeBlobs = [
+    new Blob(['chunk-a'], { type: 'audio/wav' }),
+    new Blob(['chunk-b'], { type: 'audio/wav' }),
+  ];
 
   beforeEach(() => {
     (Platform as any).OS = 'web';
+    (splitAudioWeb as jest.Mock).mockResolvedValue(fakeBlobs);
 
-    const blob = new Blob(['x'.repeat(FILE_SIZE)], { type: 'audio/webm' });
+    const originalBlob = new Blob(['x'.repeat(30 * MB)], { type: 'audio/webm' });
     let calls = 0;
     mockFetch.mockImplementation(() => {
       calls += 1;
       if (calls === 1) {
         // First call is fetch(localUri) to get the blob
-        return Promise.resolve({ blob: () => Promise.resolve(blob) });
+        return Promise.resolve({ blob: () => Promise.resolve(originalBlob) });
       }
       const idx = calls - 1; // Whisper call index
       return Promise.resolve({
@@ -205,9 +173,10 @@ describe('transcribeRecording — large file (> 25 MB, web)', () => {
     });
   });
 
-  it('splits into the correct number of Whisper calls', async () => {
+  it('calls splitAudioWeb and sends one Whisper request per chunk', async () => {
     await transcribeRecording('blob:recording');
 
+    expect(splitAudioWeb).toHaveBeenCalled();
     // 1 (blob fetch) + EXPECTED_CHUNKS (Whisper)
     expect(mockFetch).toHaveBeenCalledTimes(1 + EXPECTED_CHUNKS);
   });
@@ -216,7 +185,10 @@ describe('transcribeRecording — large file (> 25 MB, web)', () => {
     const result = await transcribeRecording('blob:recording');
 
     const expected = Array.from({ length: EXPECTED_CHUNKS }, (_, i) => `chunk-${i + 1}`).join(' ');
-    expect(result).toBe(expected);
+    expect(result).toEqual({
+      transcription: expected,
+      uncertainTerms: [],
+    });
   });
 
   it('does not touch the native filesystem', async () => {
