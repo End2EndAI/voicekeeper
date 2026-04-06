@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from './supabase';
 import { ProcessingResult, FormatType, UncertainTerm } from '../types';
+import { splitAudioWeb, splitAudioNative } from './audio-splitter';
 
 export interface TranscribeResult {
   transcription: string;
@@ -9,17 +10,6 @@ export interface TranscribeResult {
 }
 
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // 25 MB — OpenAI Whisper API limit
-const CHUNK_BYTES = 24 * 1024 * 1024;        // 24 MB per chunk (1 MB safety margin)
-
-function sliceBlob(blob: Blob): Blob[] {
-  const chunks: Blob[] = [];
-  let offset = 0;
-  while (offset < blob.size) {
-    chunks.push(blob.slice(offset, offset + CHUNK_BYTES, blob.type));
-    offset += CHUNK_BYTES;
-  }
-  return chunks;
-}
 
 export const transcribeRecording = async (
   localUri: string,
@@ -73,13 +63,13 @@ export const transcribeRecording = async (
       return sendChunk(formData);
     }
 
-    // File exceeds 25 MB: split, transcribe each chunk, join results
+    // File exceeds 25 MB: decode audio, split into valid WAV chunks, transcribe each
     // Uncertain terms from fragment chunks are meaningless — skip them
-    const chunks = sliceBlob(blob);
+    const chunks = await splitAudioWeb(blob);
     const parts: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
       const formData = new FormData();
-      formData.append('audio', chunks[i] as any, `recording-part${i + 1}.webm`);
+      formData.append('audio', chunks[i] as any, `recording-part${i + 1}.wav`);
       formData.append('mode', 'transcribe_only');
       const { transcription } = await sendChunk(formData);
       parts.push(transcription);
@@ -99,26 +89,8 @@ export const transcribeRecording = async (
     return sendChunk(formData);
   }
 
-  // File exceeds 25 MB: read as base64, split into chunks, write temp files
-  // Base64 chars per chunk: (CHUNK_BYTES / 3) * 4 — always a multiple of 4 for valid base64
-  const charsPerChunk = (CHUNK_BYTES / 3) * 4;
-  const base64Full = await FileSystem.readAsStringAsync(localUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  const tempUris: string[] = [];
-  let offset = 0;
-  let i = 0;
-  while (offset < base64Full.length) {
-    const chunkB64 = base64Full.slice(offset, offset + charsPerChunk);
-    const tempUri = `${FileSystem.cacheDirectory}chunk-${Date.now()}-${i}.m4a`;
-    await FileSystem.writeAsStringAsync(tempUri, chunkB64, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    tempUris.push(tempUri);
-    offset += charsPerChunk;
-    i++;
-  }
+  // File exceeds 25 MB: parse M4A container, split at sample boundaries into valid M4A chunks
+  const tempUris = await splitAudioNative(localUri);
 
   try {
     const parts: string[] = [];
