@@ -13,7 +13,6 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
-import { createNote } from '../services/notes';
 import { useNotes } from '../contexts/NotesContext';
 import { useTags } from '../contexts/TagsContext';
 import { TagChip } from '../components/TagChip';
@@ -21,7 +20,7 @@ import { showAlert } from '../utils/alert';
 
 export default function NoteCreateScreen() {
   const router = useRouter();
-  const { fetchNotes } = useNotes();
+  const { createNote } = useNotes();
   const { tags, addTagToNote } = useTags();
 
   const [title, setTitle] = useState('');
@@ -56,7 +55,6 @@ export default function NoteCreateScreen() {
         source: 'text',
       });
       await Promise.all(selectedTagIds.map((tagId) => addTagToNote(note.id, tagId).catch(() => {})));
-      await fetchNotes();
       router.back();
     } catch (err: any) {
       showAlert('Error', 'Failed to save note. Please try again.');

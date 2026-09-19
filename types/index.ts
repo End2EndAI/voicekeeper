@@ -99,3 +99,55 @@ export interface Tag {
   color: string;
   created_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// Offline cache & synchronisation
+// ---------------------------------------------------------------------------
+
+/** Mutations recorded locally while offline, replayed against Supabase later. */
+export type SyncOpKind =
+  | 'note.create'
+  | 'note.update'
+  | 'note.purge'      // permanent delete
+  | 'noteTag.add'
+  | 'noteTag.remove';
+
+export interface SyncOp {
+  id: string;
+  kind: SyncOpKind;
+  noteId: string;
+  tagId?: string;            // noteTag.* only
+  note?: Note;               // note.create — the full row to insert
+  patch?: Partial<Note>;     // note.update — columns to write
+  queuedAt: string;          // ISO 8601
+  attempts: number;
+  lastError?: string;
+}
+
+export interface SyncState {
+  /** A push/pull cycle is currently running. */
+  syncing: boolean;
+  /** Last cycle could not reach the server. */
+  offline: boolean;
+  /** Operations still waiting to reach Supabase. */
+  pending: number;
+  /** ISO timestamp of the last fully successful cycle. */
+  lastSyncAt: string | null;
+  /** Message from the last failed operation, if any. */
+  lastError: string | null;
+}
+
+/** Everything the app keeps on disk for one user. */
+export interface NotesSnapshot {
+  version: number;
+  notes: Note[];                        // active, archived and trashed
+  lastSyncAt: string | null;
+}
+
+export interface TagsSnapshot {
+  version: number;
+  tags: Tag[];
+  /** note id -> tag ids */
+  noteTags: Record<string, string[]>;
+  lastSyncAt: string | null;
+}

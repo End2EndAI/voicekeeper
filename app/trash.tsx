@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
 import { Note } from '../types';
-import { fetchTrashedNotes, deleteNotePermanently as deletePermanentlyService } from '../services/notes';
 import { useNotes } from '../contexts/NotesContext';
 import { showConfirm, showAlert } from '../utils/alert';
 import { formatDate } from '../utils/titleGenerator';
@@ -34,33 +33,30 @@ function getDaysRemainingLabel(deletedAt: string): string {
 
 export default function TrashScreen() {
   const router = useRouter();
-  const { restoreNote } = useNotes();
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Served from the offline cache — the trash opens instantly and offline
+  const {
+    trashedNotes: notes,
+    loading,
+    restoreNote,
+    deleteNotePermanently,
+    emptyTrash,
+    syncNow,
+  } = useNotes();
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadTrashedNotes = useCallback(async () => {
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const data = await fetchTrashedNotes();
-      setNotes(data);
-    } catch (error) {
-      console.error('Failed to fetch trashed notes:', error);
-      showAlert('Error', 'Could not load trash.');
+      await syncNow();
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
-
-  useEffect(() => {
-    loadTrashedNotes();
-  }, [loadTrashedNotes]);
+  }, [syncNow]);
 
   const handleRestore = useCallback(
     async (note: Note) => {
       try {
         await restoreNote(note.id);
-        setNotes((prev) => prev.filter((n) => n.id !== note.id));
       } catch {
         showAlert('Error', 'Could not restore note.');
       }
@@ -68,20 +64,22 @@ export default function TrashScreen() {
     [restoreNote]
   );
 
-  const handleDeletePermanently = useCallback((note: Note) => {
-    showConfirm(
-      'Delete Permanently',
-      `"${note.title}" will be permanently deleted. This cannot be undone.`,
-      async () => {
-        try {
-          await deletePermanentlyService(note.id);
-          setNotes((prev) => prev.filter((n) => n.id !== note.id));
-        } catch {
-          showAlert('Error', 'Could not delete note.');
+  const handleDeletePermanently = useCallback(
+    (note: Note) => {
+      showConfirm(
+        'Delete Permanently',
+        `"${note.title}" will be permanently deleted. This cannot be undone.`,
+        async () => {
+          try {
+            await deleteNotePermanently(note.id);
+          } catch {
+            showAlert('Error', 'Could not delete note.');
+          }
         }
-      }
-    );
-  }, []);
+      );
+    },
+    [deleteNotePermanently]
+  );
 
   const handleEmptyTrash = useCallback(() => {
     if (notes.length === 0) return;
@@ -90,15 +88,13 @@ export default function TrashScreen() {
       `Permanently delete all ${notes.length} note${notes.length > 1 ? 's' : ''} in trash? This cannot be undone.`,
       async () => {
         try {
-          await Promise.all(notes.map((n) => deletePermanentlyService(n.id)));
-          setNotes([]);
+          await emptyTrash();
         } catch {
           showAlert('Error', 'Could not empty trash.');
-          loadTrashedNotes();
         }
       }
     );
-  }, [notes, loadTrashedNotes]);
+  }, [notes.length, emptyTrash]);
 
   const renderItem = ({ item }: { item: Note }) => {
     const daysLabel = item.deleted_at ? getDaysRemainingLabel(item.deleted_at) : '';
@@ -206,10 +202,7 @@ export default function TrashScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          onRefresh={() => {
-            setRefreshing(true);
-            loadTrashedNotes();
-          }}
+          onRefresh={handleRefresh}
           refreshing={refreshing}
         />
       )}

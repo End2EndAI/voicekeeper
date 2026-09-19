@@ -1,6 +1,13 @@
 import { supabase } from './supabase';
 import { Tag } from '../types';
 
+/**
+ * Tag CRUD plus the reads the sync pull needs.
+ *
+ * Linking and unlinking a tag on a note is not here: those go through the sync
+ * outbox so they work offline and stay ordered behind the note's own creation.
+ */
+
 export const fetchTags = async (): Promise<Tag[]> => {
   const { data, error } = await supabase
     .from('tags')
@@ -42,46 +49,6 @@ export const updateTag = async (
 export const deleteTag = async (id: string): Promise<void> => {
   const { error } = await supabase.from('tags').delete().eq('id', id);
   if (error) throw error;
-};
-
-export const addTagToNote = async (
-  noteId: string,
-  tagId: string
-): Promise<void> => {
-  const { error } = await supabase
-    .from('note_tags')
-    .insert({ note_id: noteId, tag_id: tagId });
-  if (error) throw error;
-};
-
-export const removeTagFromNote = async (
-  noteId: string,
-  tagId: string
-): Promise<void> => {
-  const { error } = await supabase
-    .from('note_tags')
-    .delete()
-    .eq('note_id', noteId)
-    .eq('tag_id', tagId);
-  if (error) throw error;
-};
-
-export const fetchTagsForNote = async (noteId: string): Promise<Tag[]> => {
-  const { data, error } = await supabase
-    .from('note_tags')
-    .select('tags(*)')
-    .eq('note_id', noteId);
-  if (error) throw error;
-  return (data || []).map((row: { tags: Tag }) => row.tags);
-};
-
-export const fetchNotesForTag = async (tagId: string): Promise<string[]> => {
-  const { data, error } = await supabase
-    .from('note_tags')
-    .select('note_id')
-    .eq('tag_id', tagId);
-  if (error) throw error;
-  return (data || []).map((row: { note_id: string }) => row.note_id);
 };
 
 export const fetchNoteTagsMap = async (): Promise<Record<string, Tag[]>> => {

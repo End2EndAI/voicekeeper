@@ -1,139 +1,21 @@
 import { supabase } from './supabase';
-import { Note, CreateNoteInput, UpdateNoteInput, NoteSort } from '../types';
+import { Note } from '../types';
 
-export const fetchNotes = async (sort: NoteSort = 'date_desc'): Promise<Note[]> => {
-  let query = supabase
-    .from('notes')
-    .select('*')
-    .is('deleted_at', null)
-    .is('archived_at', null);
+/**
+ * Reads for the pull phase of a sync.
+ *
+ * Writes do not live here any more: every mutation goes through the offline
+ * cache and the sync outbox (see services/sync.ts), so that there is exactly
+ * one path to the database and nothing can bypass the local copy.
+ */
 
-  switch (sort) {
-    case 'date_asc':
-      query = query.order('created_at', { ascending: true }).order('id', { ascending: true });
-      break;
-    case 'title_asc':
-      query = query.order('title', { ascending: true }).order('id', { ascending: true });
-      break;
-    case 'title_desc':
-      query = query.order('title', { ascending: false }).order('id', { ascending: true });
-      break;
-    case 'manual':
-    case 'date_desc':
-    default:
-      query = query.order('created_at', { ascending: false }).order('id', { ascending: true });
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
-};
-
-export const createNote = async (note: CreateNoteInput): Promise<Note> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-  const { data, error } = await supabase
-    .from('notes')
-    .insert({ ...note, user_id: session.user.id })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-};
-
-export const updateNote = async (
-  id: string,
-  updates: UpdateNoteInput
-): Promise<Note> => {
-  const { data, error } = await supabase
-    .from('notes')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-};
-
-// Soft delete — déplace la note en corbeille
-export const deleteNote = async (id: string): Promise<void> => {
-  return trashNote(id);
-};
-
-// Déplace une note vers la corbeille (soft delete)
-export const trashNote = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('notes')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
-};
-
-// Restaure une note depuis la corbeille
-export const restoreNote = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('notes')
-    .update({ deleted_at: null })
-    .eq('id', id);
-  if (error) throw error;
-};
-
-// Supprime définitivement une note (depuis la corbeille uniquement)
-export const deleteNotePermanently = async (id: string): Promise<void> => {
-  const { error } = await supabase.from('notes').delete().eq('id', id);
-  if (error) throw error;
-};
-
-// Archive une note (la retire de la vue principale)
-export const archiveNote = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('notes')
-    .update({ archived_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
-};
-
-// Désarchive une note (la remet dans la vue principale)
-export const unarchiveNote = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('notes')
-    .update({ archived_at: null })
-    .eq('id', id);
-  if (error) throw error;
-};
-
-// Récupère les notes archivées
-export const fetchArchivedNotes = async (): Promise<Note[]> => {
+// Toutes les notes de l'utilisateur — actives, archivées et en corbeille — en
+// une seule requête. C'est ce que le cache hors-ligne stocke : les écrans
+// filtrent ensuite localement au lieu de refaire un aller-retour.
+export const fetchAllNotes = async (): Promise<Note[]> => {
   const { data, error } = await supabase
     .from('notes')
     .select('*')
-    .is('deleted_at', null)
-    .not('archived_at', 'is', null)
-    .order('archived_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
-};
-
-// Récupère les notes en corbeille
-export const fetchTrashedNotes = async (): Promise<Note[]> => {
-  const { data, error } = await supabase
-    .from('notes')
-    .select('*')
-    .not('deleted_at', 'is', null)
-    .order('deleted_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
-};
-
-export const searchNotes = async (query: string): Promise<Note[]> => {
-  const { data, error } = await supabase
-    .from('notes')
-    .select('*')
-    .is('deleted_at', null)
-    .is('archived_at', null)
-    .or(
-      `title.ilike.%${query}%,formatted_text.ilike.%${query}%`
-    )
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];

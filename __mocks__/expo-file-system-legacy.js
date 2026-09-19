@@ -3,9 +3,11 @@
 module.exports = {
   EncodingType: { Base64: 'base64' },
   cacheDirectory: 'cache://',
+  documentDirectory: 'doc://',
   getInfoAsync: jest.fn(),
   readAsStringAsync: jest.fn(),
   writeAsStringAsync: jest.fn(),
   deleteAsync: jest.fn(),
   copyAsync: jest.fn(),
+  makeDirectoryAsync: jest.fn(),
 };
