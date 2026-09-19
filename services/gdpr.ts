@@ -1,5 +1,7 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { clearOfflineCache } from './offlineCache';
+import { clearSyncData } from './sync';
 
 /**
  * Export all user data (GDPR Art. 20 - Right to data portability)
@@ -46,6 +48,10 @@ export const deleteAccount = async (): Promise<void> => {
     throw new Error(`Account deletion failed: ${errorMessage}`);
   }
   if (data && !data.success) throw new Error(data.error || 'Account deletion failed');
+
+  // Erasure has to cover the device too: drop the cached notes and tags and any
+  // mutation still sitting in the sync outbox before the session goes away.
+  await Promise.all([clearOfflineCache(session.user.id), clearSyncData(session.user.id)]);
 
   // Sign out locally after server-side deletion
   await supabase.auth.signOut();

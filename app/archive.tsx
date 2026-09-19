@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
 import { Note } from '../types';
-import { fetchArchivedNotes } from '../services/notes';
 import { useNotes } from '../contexts/NotesContext';
 import { showConfirm, showAlert } from '../utils/alert';
 import { formatDate } from '../utils/titleGenerator';
@@ -19,33 +18,23 @@ import { FormatBadge } from '../components/FormatBadge';
 
 export default function ArchiveScreen() {
   const router = useRouter();
-  const { unarchiveNote, trashNote } = useNotes();
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Served from the offline cache — the archive opens instantly and offline
+  const { archivedNotes: notes, loading, unarchiveNote, trashNote, syncNow } = useNotes();
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadArchivedNotes = useCallback(async () => {
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const data = await fetchArchivedNotes();
-      setNotes(data);
-    } catch (error) {
-      console.error('Failed to fetch archived notes:', error);
-      showAlert('Error', 'Could not load archived notes.');
+      await syncNow();
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
-
-  useEffect(() => {
-    loadArchivedNotes();
-  }, [loadArchivedNotes]);
+  }, [syncNow]);
 
   const handleUnarchive = useCallback(
     async (note: Note) => {
       try {
         await unarchiveNote(note.id);
-        setNotes((prev) => prev.filter((n) => n.id !== note.id));
       } catch {
         showAlert('Error', 'Could not unarchive note.');
       }
@@ -61,7 +50,6 @@ export default function ArchiveScreen() {
         async () => {
           try {
             await trashNote(note.id);
-            setNotes((prev) => prev.filter((n) => n.id !== note.id));
           } catch {
             showAlert('Error', 'Could not move note to trash.');
           }
@@ -151,10 +139,7 @@ export default function ArchiveScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          onRefresh={() => {
-            setRefreshing(true);
-            loadArchivedNotes();
-          }}
+          onRefresh={handleRefresh}
           refreshing={refreshing}
         />
       )}

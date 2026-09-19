@@ -249,12 +249,12 @@ const actionStyles = StyleSheet.create({
 export default function NoteDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { notes, updateNote, deleteNote, archiveNote } = useNotes();
-  const { tags, createTag, addTagToNote, removeTagFromNote, fetchTagsForNote } =
-    useTags();
+  // Look the note up in the full cache so archived and trashed notes open too
+  const { allNotes, updateNote, deleteNote, archiveNote } = useNotes();
+  const { tags, createTag, addTagToNote, removeTagFromNote, noteTagsMap } = useTags();
   const { customExample } = usePreferences();
 
-  const note = useMemo(() => notes.find((n) => n.id === id), [notes, id]);
+  const note = useMemo(() => allNotes.find((n) => n.id === id), [allNotes, id]);
 
   // action_items notes use checkbox UI as primary — start in view mode.
   // Other notes start in edit mode without auto-focus (#9).
@@ -294,14 +294,11 @@ export default function NoteDetailScreen() {
     }
   }, [note]);
 
-  const [noteTags, setNoteTags] = useState<Tag[]>([]);
   const [tagPickerVisible, setTagPickerVisible] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      fetchTagsForNote(id).then(setNoteTags).catch(console.error);
-    }
-  }, [id, fetchTagsForNote]);
+  // Tags come straight from the cached note/tag links, so they are already
+  // there on first paint and stay in step with optimistic updates.
+  const noteTags = useMemo<Tag[]>(() => (id ? noteTagsMap[id] ?? [] : []), [noteTagsMap, id]);
 
   if (!note) {
     return (
@@ -413,11 +410,8 @@ export default function NoteDetailScreen() {
     try {
       if (isAdded) {
         await removeTagFromNote(note.id, tagId);
-        setNoteTags((prev) => prev.filter((t) => t.id !== tagId));
       } else {
         await addTagToNote(note.id, tagId);
-        const tag = tags.find((t) => t.id === tagId);
-        if (tag) setNoteTags((prev) => [...prev, tag]);
       }
     } catch {
       showAlert('Error', 'Failed to update tags.');
@@ -428,7 +422,6 @@ export default function NoteDetailScreen() {
     try {
       const tag = await createTag(name, color);
       await addTagToNote(note.id, tag.id);
-      setNoteTags((prev) => [...prev, tag]);
     } catch {
       showAlert('Error', 'Failed to create tag.');
     }

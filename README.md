@@ -33,6 +33,7 @@ Built with React Native (Expo), Supabase, and OpenAI. Runs on iOS, Android, and 
 - **Auto-formatting** into your chosen structure (5 built-in formats + custom templates)
 - **Custom instructions** — set persistent rules for tone, language, length, etc.
 - **Card-based grid UI** with full-text search (Google Keep style)
+- **Offline-first** — notes are stored on the device and sync in the background, so the app opens instantly and works with no connection
 - **Cross-platform** — iOS, Android, and Web from a single codebase
 
 <p align="center">
@@ -58,6 +59,50 @@ Saved to Supabase Postgres (with full-text search)
 ```
 
 All OpenAI calls go through a Supabase Edge Function — your API key is never exposed to the client.
+
+---
+
+## Offline & sync
+
+Notes live on the device and are mirrored to Supabase, not the other way round.
+
+```
+                 read                          write
+                  │                              │
+                  ▼                              ▼
+        ┌───────────────────┐          ┌───────────────────┐
+        │  local snapshot   │◀─────────│   local snapshot  │
+        │  (JSON on disk)   │          │   + sync outbox   │
+        └───────────────────┘          └─────────┬─────────┘
+                  ▲                              │  replayed in order
+                  │        merge (pull)          ▼
+                  └──────────────────────  Supabase Postgres
+```
+
+- **Instant launch.** The home screen renders the cached snapshot before any
+  request goes out — no spinner waiting on the network.
+- **Works offline.** Reading, writing, editing, tagging, archiving and deleting
+  all happen locally. Notes get their UUID on the device, so they are complete
+  rows from the moment they are created.
+- **Durable outbox.** Every mutation is appended to a queue that survives app
+  restarts and is replayed against Supabase in order. Related operations
+  collapse — editing a note that has not been pushed yet rewrites its pending
+  insert rather than queueing a second round-trip.
+- **Background sync.** A cycle runs on launch, when the app returns to the
+  foreground, after each change, when the connection comes back, and on
+  pull-to-refresh. Failed cycles retry with exponential backoff.
+- **Conflicts** resolve last-writer-wins with a local bias: the push happens
+  before the pull, so anything the server has not seen yet survives the merge.
+- A status line under the app title shows what is pending, and nothing at all
+  once everything is in sync.
+
+Creating, renaming and deleting a *tag* still needs a connection (attaching an
+existing tag to a note does not).
+
+Relevant files: `services/sync.ts` (engine), `services/syncQueue.ts` (outbox
+rules), `services/syncMerge.ts` (merge and sort), `services/offlineCache.ts` and
+`services/localStore.ts` (persistence), `contexts/NotesContext.tsx` and
+`contexts/TagsContext.tsx` (wiring).
 
 ---
 
@@ -217,8 +262,8 @@ voicekeeper/
 │   ├── settings.tsx              # User preferences
 │   └── note/[id].tsx             # Note detail / edit
 ├── components/                   # Reusable UI components
-├── contexts/                     # React Context (Auth, Notes, Preferences)
-├── services/                     # Business logic (Supabase, processing, GDPR)
+├── contexts/                     # React Context (Auth, Notes, Tags, Preferences)
+├── services/                     # Business logic (Supabase, processing, sync, GDPR)
 ├── types/                        # TypeScript type definitions
 ├── constants/                    # Colors, format options
 ├── utils/                        # Helpers (alerts, title generation)

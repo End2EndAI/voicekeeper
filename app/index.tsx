@@ -11,7 +11,7 @@ import { TagFilterBar } from '../components/TagFilterBar';
 import { Colors } from '../constants/colors';
 import { Note, NoteSort } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as tagsService from '../services/tags';
+import { SyncIndicator } from '../components/SyncIndicator';
 
 const SORT_OPTIONS: { value: NoteSort; label: string }[] = [
   { value: 'date_desc', label: 'Newest first' },
@@ -23,9 +23,9 @@ const SORT_OPTIONS: { value: NoteSort; label: string }[] = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { filteredNotes, loading, searchQuery, setSearchQuery, fetchNotes, sort, setSort, setManualOrder } =
+  const { filteredNotes, loading, searchQuery, setSearchQuery, syncNow, sync, sort, setSort, setManualOrder } =
     useNotes();
-  const { tags, refreshNoteTagsMap } = useTags();
+  const { tags, noteIdsForTag } = useTags();
   const { defaultTagId } = usePreferences();
 
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
@@ -42,19 +42,19 @@ export default function HomeScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultTagId, tags.length > 0]);
 
-  const handleTagSelect = useCallback(async (tagId: string | null) => {
-    setSelectedTagId(tagId);
-    if (tagId === null) {
-      setTagNoteIds(null);
-    } else {
-      try {
-        const ids = await tagsService.fetchNotesForTag(tagId);
-        setTagNoteIds(ids);
-      } catch {
-        setTagNoteIds([]);
-      }
-    }
-  }, []);
+  // Answered from the cached note/tag links — no request, works offline
+  const handleTagSelect = useCallback(
+    (tagId: string | null) => {
+      setSelectedTagId(tagId);
+      setTagNoteIds(tagId === null ? null : noteIdsForTag(tagId));
+    },
+    [noteIdsForTag]
+  );
+
+  // Keep the filter in step when a sync brings new links down
+  useEffect(() => {
+    if (selectedTagId !== null) setTagNoteIds(noteIdsForTag(selectedTagId));
+  }, [selectedTagId, noteIdsForTag]);
 
   const handleSortChange = (newSort: NoteSort) => {
     setSort(newSort);
@@ -72,7 +72,7 @@ export default function HomeScreen() {
   };
 
   const handleRefresh = async () => {
-    await Promise.all([fetchNotes(), refreshNoteTagsMap()]);
+    await syncNow();
   };
 
   const handleRecord = () => {
@@ -113,6 +113,7 @@ export default function HomeScreen() {
             </Text>
             <Text style={styles.sortIndicator}> · ↕ {currentSortLabel}</Text>
           </Pressable>
+          <SyncIndicator state={sync} onPress={syncNow} />
         </View>
         <View style={styles.headerActions}>
           {sort === 'manual' && (
