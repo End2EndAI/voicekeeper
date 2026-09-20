@@ -21,6 +21,8 @@ import { FormatType } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { exportUserData, deleteAccount } from '../services/gdpr';
 import { TagChip } from '../components/TagChip';
+import { requestPinWidget } from 'react-native-android-widget';
+import { RECORD_WIDGET_NAME } from '../constants/widgets';
 
 const TAG_PALETTE = [
   '#6366F1',
@@ -58,6 +60,7 @@ export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [togglingAutotagging, setTogglingAutotagging] = useState(false);
+  const [pinningWidget, setPinningWidget] = useState(false);
 
   // Tag creation state
   const [newTagName, setNewTagName] = useState('');
@@ -215,6 +218,30 @@ export default function SettingsScreen() {
     );
   };
 
+  // Asks the launcher to drop the record widget on the home screen. Resolving
+  // false means the launcher has no pinning support, not that the user said no.
+  const handleAddWidget = async () => {
+    setPinningWidget(true);
+    try {
+      const accepted = await requestPinWidget({
+        widgetName: RECORD_WIDGET_NAME,
+      });
+      if (!accepted) {
+        showAlert(
+          'Add the Widget Manually',
+          'This launcher cannot add widgets for you. Long-press an empty spot on your home screen, tap Widgets, and pick VoiceKeeper.'
+        );
+      }
+    } catch {
+      showAlert(
+        'Could Not Add the Widget',
+        'Something went wrong. Try adding it from your launcher\'s widget list instead.'
+      );
+    } finally {
+      setPinningWidget(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
@@ -367,6 +394,37 @@ export default function SettingsScreen() {
             </Text>
           </Pressable>
         </View>
+
+        {/* Home screen widget */}
+        {Platform.OS === 'android' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Home Screen</Text>
+            <Text style={styles.sectionDesc}>
+              Start a recording without opening the app first.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.navLink,
+                pressed && { opacity: 0.7 },
+              ]}
+              onPress={handleAddWidget}
+              disabled={pinningWidget}
+            >
+              <View style={styles.navLinkContent}>
+                <Text style={styles.navLinkIcon}>🎙</Text>
+                <View style={styles.navLinkText}>
+                  <Text style={styles.navLinkTitle}>
+                    {pinningWidget ? 'Adding...' : 'Add Record Widget'}
+                  </Text>
+                  <Text style={styles.navLinkDesc}>
+                    One tap from your home screen to a new note
+                  </Text>
+                </View>
+                <Text style={styles.navLinkChevron}>›</Text>
+              </View>
+            </Pressable>
+          </View>
+        )}
 
         {/* Notes management */}
         <View style={styles.section}>

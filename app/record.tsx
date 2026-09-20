@@ -44,9 +44,21 @@ export default function RecordScreen() {
 
   const stoppingRef = useRef(false);
 
+  // Read by the unmount cleanup, which would otherwise close over a stale
+  // recorder state from the first render.
+  const isRecordingRef = useRef(false);
+  isRecordingRef.current = recorderState.isRecording;
+
   useEffect(() => {
     checkPermission();
-    return () => { deactivateKeepAwake(); };
+    return () => {
+      deactivateKeepAwake();
+      // If the screen goes away with the mic still live — a second widget tap
+      // remounting it, say — nothing else would ever stop the native recorder.
+      if (isRecordingRef.current && !stoppingRef.current) {
+        recorder.stop().catch(() => {});
+      }
+    };
   }, []);
 
   const checkPermission = async () => {
@@ -136,6 +148,7 @@ export default function RecordScreen() {
   const handleCancel = async () => {
     deactivateKeepAwake();
     if (recorderState.isRecording) {
+      stoppingRef.current = true;
       try {
         await recorder.stop();
       } catch {}
