@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { PreferencesProvider } from '../contexts/PreferencesContext';
@@ -8,10 +8,19 @@ import { TagsProvider } from '../contexts/TagsContext';
 import { RecordingsProvider } from '../contexts/RecordingsContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '../constants/colors';
+import { consumePendingRoute, setPendingRoute } from '../utils/pendingRoute';
+
+export const unstable_settings = {
+  // The Android record widget deep links straight into /record. Anchoring the
+  // stack on the home screen gives that screen something to go back to —
+  // otherwise Cancel would leave the user stranded on a modal with no parent.
+  initialRouteName: 'index',
+};
 
 function useProtectedRoute() {
   const { session, loading } = useAuth();
   const segments = useSegments();
+  const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
@@ -20,11 +29,17 @@ function useProtectedRoute() {
     const isOnLogin = segments[0] === 'login';
 
     if (!session && !isOnLogin) {
+      // Hold on to where the deep link was going so sign-in can resume it
+      setPendingRoute(pathname);
       router.replace('/login');
     } else if (session && isOnLogin) {
+      const pending = consumePendingRoute();
       router.replace('/');
+      // Pushed on top of home rather than replacing it, so the resumed screen
+      // keeps a back stack.
+      if (pending) router.push(pending);
     }
-  }, [session, loading, segments]);
+  }, [session, loading, segments, pathname]);
 
   return { loading };
 }

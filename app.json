@@ -50,6 +50,24 @@
           "microphonePermission": "VoiceKeeper needs microphone access to record voice notes.",
           "enableBackgroundRecording": true
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Record",
+              "label": "Record a note",
+              "description": "Start a VoiceKeeper recording",
+              "minWidth": "110dp",
+              "minHeight": "40dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 1,
+              "resizeMode": "horizontal",
+              "previewImage": "./assets/widget-preview.png"
+            }
+          ]
+        }
       ]
     ],
     "extra": {

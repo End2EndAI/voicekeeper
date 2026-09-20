@@ -29,6 +29,7 @@ Built with React Native (Expo), Supabase, and OpenAI. Runs on iOS, Android, and 
 ## Features
 
 - **One-tap recording** with live waveform feedback
+- **Android home screen widget** — start a recording without opening the app first
 - **Auto-transcription** powered by OpenAI Whisper
 - **Auto-formatting** into your chosen structure (5 built-in formats + custom templates)
 - **Custom instructions** — set persistent rules for tone, language, length, etc.
